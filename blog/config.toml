@@ -1,0 +1,16 @@
+# Zola configuration. base_url is overridden at deploy time by
+# `mdpub publish` (zola build --base-url <mdpub.toml base_url>).
+base_url = "http://127.0.0.1:1111"
+title = "Edward's BlogPost"
+description = "Notes on software, APIs, and AI systems"
+default_language = "en"
+generate_feeds = true
+feed_filenames = ["atom.xml"]
+compile_sass = false
+build_search_index = false
+
+taxonomies = [{ name = "tags", feed = false }]
+
+[markdown.highlighting]
+enabled = true
+theme = "github-light"

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ config.title }}{% endblock title %}</title>
+  <meta name="description" content="{% block description %}{{ config.description }}{% endblock description %}">
+  {% if config.generate_feeds %}<link rel="alternate" type="application/atom+xml" title="{{ config.title }}" href="{{ get_url(path='atom.xml') }}">{% endif %}
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #0a6e5c;
+      --code-bg: #f6f8fa;
+      --border: #e6e6e6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121212;
+        --fg: #e6e6e6;
+        --muted: #9a9a9a;
+        --accent: #4dd0b5;
+        --code-bg: #1e1e1e;
+        --border: #2c2c2c;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Charter, Georgia, "Times New Roman", serif;
+      font-size: 19px;
+      line-height: 1.65;
+    }
+    header.site {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 0;
+      font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    header.site a { color: var(--fg); text-decoration: none; font-weight: 700; }
+    header.site nav a { color: var(--muted); font-weight: 400; margin-left: 1rem; }
+    main { max-width: 680px; margin: 0 auto; padding: 1rem; }
+    h1, h2, h3, h4 {
+      font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      line-height: 1.25;
+    }
+    h1 { font-size: 1.9rem; }
+    a { color: var(--accent); }
+    code {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.85em;
+      background: var(--code-bg);
+      padding: 0.15em 0.35em;
+      border-radius: 4px;
+    }
+    pre {
+      background: var(--code-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+    }
+    pre code { background: none; padding: 0; font-size: 0.8em; }
+    blockquote {
+      margin: 0;
+      padding-left: 1rem;
+      border-left: 3px solid var(--accent);
+      color: var(--muted);
+    }
+    table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 0.85em; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
+    th { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    img { max-width: 100%; height: auto; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem auto; width: 40%; }
+    .meta { color: var(--muted); font-size: 0.85rem; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .tag {
+      display: inline-block;
+      font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 0.78rem;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 0.1rem 0.7rem;
+      margin-right: 0.35rem;
+      text-decoration: none;
+      color: var(--muted);
+    }
+    footer.site {
+      max-width: 680px;
+      margin: 3rem auto 0;
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    ul.post-list { list-style: none; padding: 0; }
+    ul.post-list li { margin-bottom: 1.6rem; }
+    ul.post-list h2 { margin: 0 0 0.2rem; font-size: 1.25rem; }
+    ul.post-list a { text-decoration: none; color: var(--fg); }
+    ul.post-list a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <a href="{{ get_url(path='') }}">{{ config.title }}</a>
+    <nav>
+      <a href="{{ get_url(path='blog') }}">Archive</a>
+      <a href="{{ get_url(path='tags') }}">Tags</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock content %}
+  </main>
+  <footer class="site">
+    &copy; {{ now() | date(format="%Y") }} {{ config.title }} &middot; <a href="{{ get_url(path='atom.xml') }}">Feed</a>
+  </footer>
+</body>
+</html>

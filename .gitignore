@@ -1,0 +1,30 @@
+# --- Confidential: server address, deploy target, local settings ---
+mdpub.toml
+config
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.claude/settings.local.json
+.serena/
+
+# --- Local state (machine-specific publish tracking) ---
+.mdpub-state.json
+.mdpub-state.json.tmp
+
+# --- Rust ---
+target/
+**/*.rs.bk
+*.pdb
+# Note: mdpub/Cargo.lock is intentionally tracked — recommended for binaries.
+
+# --- Zola build output (regenerated on every publish) ---
+blog/public/
+
+# --- Articles kept out of the repo ---
+Day*
+
+# --- OS noise ---
+.DS_Store

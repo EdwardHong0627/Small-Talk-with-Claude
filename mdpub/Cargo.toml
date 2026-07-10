@@ -1,0 +1,21 @@
+[package]
+name = "mdpub"
+version = "0.1.0"
+edition = "2024"
+description = "Publish markdown articles to a self-hosted Zola blog over rsync/SSH"
+
+[dependencies]
+anyhow = "1"
+blake3 = "1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+open = "5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml_ng = "0.10"
+toml = "0.8"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
