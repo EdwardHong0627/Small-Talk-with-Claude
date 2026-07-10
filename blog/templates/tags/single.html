@@ -3,12 +3,16 @@
 {% block title %}#{{ term.name }} — {{ config.title }}{% endblock title %}
 
 {% block content %}
-<h1>#{{ term.name }}</h1>
+<div class="page-head">
+  <h1>#{{ term.name }}<span class="accent">_</span></h1>
+  <p class="sub mono">grep -rl "{{ term.name }}" ~/blog &mdash; {{ term.pages | length }} match{{ term.pages | length | pluralize(plural="es") }}</p>
+</div>
 <ul class="post-list">
   {% for page in term.pages %}
   <li>
-    <h2><a href="{{ page.permalink }}">{{ page.title }}</a></h2>
-    <span class="meta">{{ page.date | date(format="%B %e, %Y") }}</span>
+    <span class="meta when">{{ page.date | date(format="%b %d") }}</span>
+    <a href="{{ page.permalink }}">{{ page.title }}</a>
+    <span class="meta mins">{{ page.reading_time }} min</span>
   </li>
   {% endfor %}
 </ul>

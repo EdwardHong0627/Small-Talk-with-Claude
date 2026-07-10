@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use chrono::NaiveDate;
+use chrono::{DateTime, FixedOffset};
 
 use crate::frontmatter::{Meta, take_leading_h1};
 
@@ -8,7 +8,7 @@ use crate::frontmatter::{Meta, take_leading_h1};
 pub struct ResolvedMeta {
     pub title: String,
     pub slug: String,
-    pub date: NaiveDate,
+    pub date: DateTime<FixedOffset>,
     pub tags: Vec<String>,
     pub draft: bool,
     pub canonical_url: Option<String>,
@@ -17,8 +17,15 @@ pub struct ResolvedMeta {
 
 /// Resolve frontmatter with fallbacks: a missing title is taken from a
 /// leading `# h1` (which is then removed from the body, since the page
-/// template renders the title itself); a missing date becomes `today`.
-pub fn resolve(meta: Meta, body: &str, today: NaiveDate, force_draft: bool) -> Result<(ResolvedMeta, String)> {
+/// template renders the title itself); a missing date becomes
+/// `default_date` (first publish time, so same-day posts sort correctly
+/// and the date doesn't drift on republish).
+pub fn resolve(
+    meta: Meta,
+    body: &str,
+    default_date: DateTime<FixedOffset>,
+    force_draft: bool,
+) -> Result<(ResolvedMeta, String)> {
     let (title, body) = match meta.title {
         Some(title) => {
             // Still drop a duplicated leading h1 if it matches the title.
@@ -30,15 +37,24 @@ pub fn resolve(meta: Meta, body: &str, today: NaiveDate, force_draft: bool) -> R
         None => take_leading_h1(body)
             .context("no title: add `title:` frontmatter or start the article with `# Title`")?,
     };
-    let slug = slugify(&title);
-    if slug.is_empty() {
-        bail!("title {title:?} produces an empty slug");
-    }
+    let slug = match meta.slug {
+        Some(slug) => {
+            validate_slug(&slug)?;
+            slug
+        }
+        None => {
+            let slug = slugify(&title);
+            if slug.is_empty() {
+                bail!("title {title:?} produces an empty slug");
+            }
+            slug
+        }
+    };
     Ok((
         ResolvedMeta {
             title,
             slug,
-            date: meta.date.unwrap_or(today),
+            date: meta.date.unwrap_or(default_date),
             tags: meta.tags,
             draft: meta.draft || force_draft,
             canonical_url: meta.canonical_url,
@@ -68,6 +84,28 @@ pub fn slugify(title: &str) -> String {
     slug
 }
 
+/// Reject a hand-written `slug:` frontmatter value that wouldn't round-trip
+/// as a clean URL segment: empty, uppercase/non-kebab characters, or a
+/// leading/trailing/doubled `-`.
+fn validate_slug(slug: &str) -> Result<()> {
+    if slug.is_empty() {
+        bail!("slug frontmatter is empty");
+    }
+    let is_kebab = slug
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    if !is_kebab
+        || slug.starts_with('-')
+        || slug.ends_with('-')
+        || slug.contains("--")
+    {
+        bail!(
+            "slug {slug:?} must be lowercase kebab-case (letters, digits, single hyphens, no leading/trailing hyphen)"
+        );
+    }
+    Ok(())
+}
+
 /// Render a complete Zola page: TOML frontmatter (`+++`) plus body.
 pub fn render_page(meta: &ResolvedMeta, body: &str) -> String {
     let mut fm = String::new();
@@ -75,7 +113,9 @@ pub fn render_page(meta: &ResolvedMeta, body: &str) -> String {
     if let Some(description) = &meta.description {
         fm.push_str(&format!("description = {}\n", toml_str(description)));
     }
-    fm.push_str(&format!("date = {}\n", meta.date.format("%Y-%m-%d")));
+    // Full offset datetime (a bare TOML value, not a string) so Zola
+    // orders same-day posts by publish time.
+    fm.push_str(&format!("date = {}\n", meta.date.format("%Y-%m-%dT%H:%M:%S%:z")));
     fm.push_str(&format!("slug = {}\n", toml_str(&meta.slug)));
     if meta.draft {
         fm.push_str("draft = true\n");
@@ -99,8 +139,8 @@ fn toml_str(s: &str) -> String {
 mod tests {
     use super::*;
 
-    fn today() -> NaiveDate {
-        NaiveDate::from_ymd_opt(2026, 7, 10).unwrap()
+    fn today() -> DateTime<FixedOffset> {
+        DateTime::parse_from_rfc3339("2026-07-10T13:45:00+08:00").unwrap()
     }
 
     #[test]
@@ -122,6 +162,32 @@ mod tests {
         assert_eq!(resolved.slug, "given-title");
         assert_eq!(resolved.date, today());
         assert_eq!(body, "Body.\n");
+    }
+
+    #[test]
+    fn resolve_uses_frontmatter_slug_override() {
+        let meta = Meta {
+            title: Some("MCP Is Not a New Paradigm".into()),
+            slug: Some("mcp-design-patterns".into()),
+            ..Meta::default()
+        };
+        let (resolved, _) = resolve(meta, "Body.\n", today(), false).unwrap();
+        assert_eq!(resolved.slug, "mcp-design-patterns");
+    }
+
+    #[test]
+    fn resolve_rejects_invalid_slug_override() {
+        for bad in ["", "Has Spaces", "Upper-Case", "-leading", "trailing-", "double--dash"] {
+            let meta = Meta {
+                title: Some("T".into()),
+                slug: Some(bad.into()),
+                ..Meta::default()
+            };
+            assert!(
+                resolve(meta, "Body.\n", today(), false).is_err(),
+                "expected {bad:?} to be rejected"
+            );
+        }
     }
 
     #[test]
@@ -184,7 +250,7 @@ mod tests {
         let expected = "+++\n\
             title = 'A \"Quoted\" Title'\n\
             description = \"Desc.\"\n\
-            date = 2026-07-10\n\
+            date = 2026-07-10T13:45:00+08:00\n\
             slug = \"a-quoted-title\"\n\
             draft = true\n\
             \n[taxonomies]\ntags = [\"rust\", \"apis\"]\n\

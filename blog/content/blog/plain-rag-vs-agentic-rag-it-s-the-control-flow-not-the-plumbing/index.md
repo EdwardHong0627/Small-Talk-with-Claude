@@ -1,7 +1,10 @@
 +++
 title = "Plain RAG vs. Agentic RAG: It's the Control Flow, Not the Plumbing"
-date = 2026-07-10
+date = 2026-07-10T21:08:38+08:00
 slug = "plain-rag-vs-agentic-rag-it-s-the-control-flow-not-the-plumbing"
+
+[taxonomies]
+tags = ["rag", "agents", "llm"]
 +++
 
 ![rag_vs_agentic_rag](rag_vs_agentic_rag.gif)

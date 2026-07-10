@@ -11,6 +11,8 @@ pub struct Article {
     pub title: String,
     pub content_hash: String,
     pub url: String,
+    /// When the article was *first* published — preserved across
+    /// republishes; it is the default page date, so it must not drift.
     pub published_at: DateTime<Utc>,
 }
 
