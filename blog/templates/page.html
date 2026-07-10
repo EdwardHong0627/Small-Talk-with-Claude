@@ -4,18 +4,47 @@
 {% block description %}{% if page.description %}{{ page.description }}{% else %}{{ config.description }}{% endif %}{% endblock description %}
 
 {% block content %}
-<article>
-  <h1>{{ page.title }}</h1>
-  <p class="meta">
-    {{ page.date | date(format="%B %e, %Y") }} &middot; {{ page.reading_time }} min read
-  </p>
-  {% if page.taxonomies.tags %}
-  <p>
-    {% for tag in page.taxonomies.tags %}
-    <a class="tag" href="{{ get_taxonomy_url(kind='tags', name=tag) }}">{{ tag }}</a>
-    {% endfor %}
-  </p>
-  {% endif %}
+<article class="prose">
+  <header class="article-head">
+    <p class="meta crumb">cat blog/{{ page.slug }}.md</p>
+    <h1>{{ page.title }}</h1>
+    <p class="meta">
+      {{ page.date | date(format="%B %e, %Y") }} &middot; {{ page.reading_time }} min read &middot; {{ page.word_count }} words
+    </p>
+    {% if page.taxonomies.tags %}
+    <div class="tags">
+      {% for tag in page.taxonomies.tags %}
+      <a class="tag" href="{{ get_taxonomy_url(kind='tags', name=tag) }}">{{ tag }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </header>
   {{ page.content | safe }}
+  <section class="interact" data-slug="{{ page.slug }}">
+    <p class="side-label">react &amp; discuss</p>
+    <div class="reactions">
+      <button type="button" class="reaction-btn" data-kind="like">
+        <span class="reaction-emoji">👍</span>
+        <span class="reaction-count" id="reaction-count-like">0</span>
+      </button>
+      <button type="button" class="reaction-btn" data-kind="clap">
+        <span class="reaction-emoji">👏</span>
+        <span class="reaction-count" id="reaction-count-clap">0</span>
+      </button>
+    </div>
+
+    <ul class="comment-list" id="comment-list"></ul>
+
+    <form class="comment-form" id="comment-form" novalidate>
+      <label for="comment-author">name (optional)</label>
+      <input type="text" id="comment-author" name="author" autocomplete="name" maxlength="80">
+      <label for="comment-body">comment</label>
+      <textarea id="comment-body" name="body" required maxlength="2000"></textarea>
+      <input type="text" name="hp" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit">post comment</button>
+      <p class="comment-status" id="comment-status"></p>
+    </form>
+  </section>
+  <p class="eof">EOF &middot; <a href="{{ get_url(path='') }}">cd ~</a></p>
 </article>
 {% endblock content %}

@@ -3,10 +3,19 @@
 {% block title %}Tags — {{ config.title }}{% endblock title %}
 
 {% block content %}
-<h1>Tags</h1>
-<ul class="post-list">
+<div class="page-head">
+  <h1>Tags<span class="accent">_</span></h1>
+  <p class="sub mono">GROUP BY tag ORDER BY tag ASC;</p>
+</div>
+<div class="card-grid">
   {% for term in terms %}
-  <li><a href="{{ term.permalink }}">{{ term.name }}</a> <span class="meta">({{ term.pages | length }})</span></li>
+  <div class="card">
+    <div class="card-top">
+      <span class="card-index">#{{ term.name }}</span>
+      <span>{{ term.pages | length }} post{{ term.pages | length | pluralize }}</span>
+    </div>
+    <h2><a href="{{ term.permalink }}">{{ term.name }}</a></h2>
+  </div>
   {% endfor %}
-</ul>
+</div>
 {% endblock content %}

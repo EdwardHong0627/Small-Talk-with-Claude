@@ -2,13 +2,45 @@
 
 {% block content %}
 {% set blog = get_section(path="blog/_index.md") %}
-<ul class="post-list">
+<div class="page-head">
+  <h1>Latest writing<span class="accent">_</span></h1>
+  <p class="sub mono">SELECT * FROM posts ORDER BY date DESC;</p>
+</div>
+<div class="card-grid">
   {% for page in blog.pages %}
-  <li>
+  <div class="card">
+    {% set_global thumb = "" %}
+    {% for asset in page.assets %}
+      {% if thumb == "" and asset is matching("(?i)[.](png|jpe?g|gif|webp|avif|svg)$") %}
+        {% set_global thumb = get_url(path=asset) %}
+      {% endif %}
+    {% endfor %}
+    {% if thumb %}
+    <div class="card-media"><img src="{{ thumb }}" alt="" loading="lazy"></div>
+    {% endif %}
+    <div class="card-top">
+      <span class="card-index">[{% if loop.index < 10 %}00{{ loop.index }}{% elif loop.index < 100 %}0{{ loop.index }}{% else %}{{ loop.index }}{% endif %}]</span>
+      <span>{{ page.date | date(format="%Y-%m-%d") }}</span>
+    </div>
     <h2><a href="{{ page.permalink }}">{{ page.title }}</a></h2>
-    <span class="meta">{{ page.date | date(format="%B %e, %Y") }} &middot; {{ page.reading_time }} min read</span>
-    {% if page.description %}<p>{{ page.description }}</p>{% endif %}
-  </li>
+    <p class="excerpt">
+      {%- if page.description -%}
+        {{ page.description }}
+      {%- else -%}
+        {{ page.content | striptags | truncate(length=180) }}
+      {%- endif -%}
+    </p>
+    <div class="card-foot">
+      <div class="tags">
+        {% if page.taxonomies.tags %}
+        {% for tag in page.taxonomies.tags %}
+        <a class="tag" href="{{ get_taxonomy_url(kind='tags', name=tag) }}">{{ tag }}</a>
+        {% endfor %}
+        {% endif %}
+      </div>
+      <span class="read-hint">{{ page.reading_time }} min &rarr;</span>
+    </div>
+  </div>
   {% endfor %}
-</ul>
+</div>
 {% endblock content %}

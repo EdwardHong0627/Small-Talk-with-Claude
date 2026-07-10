@@ -71,8 +71,22 @@ fn publish(
     let key = article_key(&ws.root, &source)?;
     let mut st = State::load(&ws.state_path())?;
 
+    // The default page date is the *first* publish time (falling back to
+    // now for new articles): same-day posts sort by publish order and a
+    // republish doesn't bump the article's date.
+    let first_published = st
+        .articles
+        .get(&key)
+        .map(|a| a.published_at)
+        .unwrap_or_else(Utc::now);
+
     let parsed = frontmatter::parse(&text)?;
-    let (meta, body) = zola::resolve(parsed.meta, &parsed.body, Local::now().date_naive(), draft)?;
+    let (meta, body) = zola::resolve(
+        parsed.meta,
+        &parsed.body,
+        first_published.with_timezone(&Local).fixed_offset(),
+        draft,
+    )?;
 
     let source_dir = source
         .parent()
@@ -121,7 +135,7 @@ fn publish(
     let url = ws.article_url(&meta.slug);
     println!("  Title:  {}", meta.title);
     println!("  Slug:   {}", meta.slug);
-    println!("  Date:   {}", meta.date);
+    println!("  Date:   {}", meta.date.format("%Y-%m-%d %H:%M"));
     println!(
         "  Tags:   {}",
         if meta.tags.is_empty() { "(none)".to_string() } else { meta.tags.join(", ") }
@@ -146,7 +160,7 @@ fn publish(
             title: meta.title.clone(),
             content_hash: hash,
             url: url.clone(),
-            published_at: Utc::now(),
+            published_at: first_published,
         },
     );
     st.save(&ws.state_path())?;
@@ -229,7 +243,8 @@ fn source_hash(source: &Path) -> Result<String> {
     let raw = std::fs::read(source)?;
     let text = String::from_utf8(raw.clone())?;
     let parsed = frontmatter::parse(&text)?;
-    let (meta, body) = zola::resolve(parsed.meta, &parsed.body, Local::now().date_naive(), false)?;
+    let (meta, body) =
+        zola::resolve(parsed.meta, &parsed.body, Local::now().fixed_offset(), false)?;
     let source_dir = source.parent().context("no parent directory")?;
     let (_, local_images) = images::rewrite(&body, source_dir)?;
     combined_hash(&raw, &local_images, meta.draft)
@@ -412,6 +427,39 @@ mod tests {
         )
         .unwrap();
         assert!(!page.contains("draft = true"));
+    }
+
+    #[test]
+    fn republish_preserves_first_publish_date() {
+        let (dir, article) = fixture();
+        let mut mock = MockRunner::default();
+        run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
+
+        let page_path = dir.path().join("blog/content/blog/test-article/index.md");
+        let date_line = |path: &Path| {
+            std::fs::read_to_string(path)
+                .unwrap()
+                .lines()
+                .find(|l| l.starts_with("date = "))
+                .unwrap()
+                .to_string()
+        };
+        let first_date = date_line(&page_path);
+        assert!(
+            first_date.contains('T'),
+            "expected a full datetime, got: {first_date}"
+        );
+        let first_state = State::load(&dir.path().join(config::STATE_FILE)).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        run(publish_cmd(&article, false, true), &mut mock, dir.path()).unwrap();
+        assert_eq!(date_line(&page_path), first_date, "date drifted on republish");
+
+        let second_state = State::load(&dir.path().join(config::STATE_FILE)).unwrap();
+        assert_eq!(
+            second_state.articles["post.md"].published_at,
+            first_state.articles["post.md"].published_at,
+        );
     }
 
     #[test]

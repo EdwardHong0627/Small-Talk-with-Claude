@@ -1,0 +1,37 @@
+[Unit]
+Description=blog-api (comments/reactions/contact backend)
+After=network.target
+
+[Service]
+DynamicUser=yes
+# Auto-provisions /var/lib/blog-api owned by the dynamic user (also exposed
+# to the process as $STATE_DIRECTORY). No manual `useradd`/`mkdir` needed.
+StateDirectory=blog-api
+# Holds BLOG_API_ADMIN_TOKEN. Created manually on the server, never
+# committed to git. chmod 600, owned by root — see docs/server-setup.md.
+EnvironmentFile=/etc/blog-api.env
+Environment=BLOG_API_BIND_ADDR=127.0.0.1:8787
+Environment=BLOG_API_DB_PATH=/var/lib/blog-api/blog.db
+# Must match the install path deploy.sh scp's the binary to.
+ExecStart=/usr/local/bin/blog-api
+Restart=on-failure
+RestartSec=2
+
+# Hardening — blog-api only needs network + its StateDirectory.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target
