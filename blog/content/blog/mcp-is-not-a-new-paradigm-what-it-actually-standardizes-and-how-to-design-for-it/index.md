@@ -1,10 +1,13 @@
 +++
 title = "MCP Is Not a New Paradigm: What It Actually Standardizes, and How to Design For It"
-date = 2026-07-10
+date = 2026-07-10T13:30:00+08:00
 slug = "mcp-is-not-a-new-paradigm-what-it-actually-standardizes-and-how-to-design-for-it"
+
+[taxonomies]
+tags = ["mcp", "api-design", "llm"]
 +++
 
-## TL;DR
+![mcp](mcp-explained.gif)
 
 The Model Context Protocol (MCP) is best understood not as a new kind of API but as a **standardized profile of existing API patterns** — JSON-RPC 2.0, plus mandatory runtime introspection, plus Backend-for-Frontend–style aggregation — specialized for one unusual consumer: a stochastic, forgetful model that self-discovers your capabilities and re-reads your interface on every turn.
 

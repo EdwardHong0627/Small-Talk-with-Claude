@@ -3,12 +3,23 @@
 {% block title %}{{ section.title }} — {{ config.title }}{% endblock title %}
 
 {% block content %}
-<h1>{{ section.title }}</h1>
+<div class="page-head">
+  <h1>{{ section.title }}<span class="accent">_</span></h1>
+  <p class="sub mono">ls -lt ~/blog &mdash; {{ section.pages | length }} post{{ section.pages | length | pluralize }}</p>
+</div>
+{% set_global last_year = 0 %}
 <ul class="post-list">
   {% for page in section.pages %}
+  {% if page.year != last_year %}
+  </ul>
+  <h2 class="archive-year">{{ page.year }}</h2>
+  <ul class="post-list">
+  {% set_global last_year = page.year %}
+  {% endif %}
   <li>
-    <h2><a href="{{ page.permalink }}">{{ page.title }}</a></h2>
-    <span class="meta">{{ page.date | date(format="%B %e, %Y") }} &middot; {{ page.reading_time }} min read</span>
+    <span class="meta when">{{ page.date | date(format="%b %d") }}</span>
+    <a href="{{ page.permalink }}">{{ page.title }}</a>
+    <span class="meta mins">{{ page.reading_time }} min</span>
   </li>
   {% endfor %}
 </ul>
