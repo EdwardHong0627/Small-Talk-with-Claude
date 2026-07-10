@@ -1,13 +1,14 @@
 use anyhow::{Context, Result, bail};
-use chrono::NaiveDate;
+use chrono::{DateTime, FixedOffset, Local, NaiveDate, TimeZone};
 use serde::Deserialize;
 
 /// Metadata declared in a source article's optional YAML frontmatter.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Meta {
     pub title: Option<String>,
+    pub slug: Option<String>,
     pub tags: Vec<String>,
-    pub date: Option<NaiveDate>,
+    pub date: Option<DateTime<FixedOffset>>,
     pub draft: bool,
     pub canonical_url: Option<String>,
     pub description: Option<String>,
@@ -31,6 +32,7 @@ enum TagList {
 #[serde(deny_unknown_fields)]
 struct RawMeta {
     title: Option<String>,
+    slug: Option<String>,
     tags: Option<TagList>,
     date: Option<String>,
     draft: Option<bool>,
@@ -119,6 +121,7 @@ fn resolve_raw(raw: RawMeta) -> Result<Meta> {
         .transpose()?;
     Ok(Meta {
         title: raw.title,
+        slug: raw.slug,
         tags,
         date,
         draft: raw.draft.unwrap_or(false),
@@ -127,14 +130,21 @@ fn resolve_raw(raw: RawMeta) -> Result<Meta> {
     })
 }
 
-/// Accept `YYYY-MM-DD` or any RFC 3339 datetime.
-fn parse_date(value: &str) -> Result<NaiveDate> {
+/// Accept `YYYY-MM-DD` (midnight, local offset) or any RFC 3339 datetime.
+/// Times matter: Zola sorts posts by full datetime, so same-day posts
+/// keep their publish order.
+fn parse_date(value: &str) -> Result<DateTime<FixedOffset>> {
     let value = value.trim();
     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
-        return Ok(date);
+        let midnight = date.and_hms_opt(0, 0, 0).expect("valid midnight");
+        let offset = *Local::now().offset();
+        return Ok(offset
+            .from_local_datetime(&midnight)
+            .earliest()
+            .expect("fixed offsets have no DST gaps"));
     }
-    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(value) {
-        return Ok(dt.date_naive());
+    if let Ok(dt) = DateTime::parse_from_rfc3339(value) {
+        return Ok(dt);
     }
     bail!("invalid date {value:?} — expected YYYY-MM-DD or RFC 3339");
 }
@@ -164,16 +174,22 @@ mod tests {
         let parsed = parse(src).unwrap();
         assert_eq!(parsed.meta.title.as_deref(), Some("My Post"));
         assert_eq!(parsed.meta.tags, vec!["rust", "apis"]);
-        assert_eq!(
-            parsed.meta.date,
-            Some(NaiveDate::from_ymd_opt(2026, 7, 10).unwrap())
-        );
+        let date = parsed.meta.date.unwrap();
+        assert_eq!(date.date_naive(), NaiveDate::from_ymd_opt(2026, 7, 10).unwrap());
+        assert_eq!(date.time(), chrono::NaiveTime::MIN, "date-only means midnight");
         assert!(parsed.meta.draft);
         assert_eq!(
             parsed.meta.canonical_url.as_deref(),
             Some("https://example.com/x")
         );
         assert_eq!(parsed.body, "Body text.\n");
+    }
+
+    #[test]
+    fn slug_frontmatter_is_parsed() {
+        let src = "---\ntitle: My Post\nslug: my-custom-slug\n---\nx\n";
+        let parsed = parse(src).unwrap();
+        assert_eq!(parsed.meta.slug.as_deref(), Some("my-custom-slug"));
     }
 
     #[test]
@@ -223,13 +239,11 @@ mod tests {
     }
 
     #[test]
-    fn rfc3339_date_is_accepted() {
-        let src = "---\ndate: 2026-07-10T08:00:00Z\n---\nx\n";
+    fn rfc3339_date_keeps_its_time() {
+        let src = "---\ndate: 2026-07-10T08:30:00Z\n---\nx\n";
         let parsed = parse(src).unwrap();
-        assert_eq!(
-            parsed.meta.date,
-            Some(NaiveDate::from_ymd_opt(2026, 7, 10).unwrap())
-        );
+        let date = parsed.meta.date.unwrap();
+        assert_eq!(date.to_rfc3339(), "2026-07-10T08:30:00+00:00");
     }
 
     #[test]

@@ -50,13 +50,15 @@ useful in scripts.
 ## Writing articles
 
 No frontmatter required — the title comes from the first `# heading` and
-the date defaults to today. Optional YAML frontmatter:
+the date defaults to the moment of first publish (kept stable across
+republishes, so same-day posts sort by publish order). Optional YAML
+frontmatter:
 
 ```yaml
 ---
 title: Custom Title            # otherwise: first "# h1" in the file
 tags: [mcp, api-design]        # or a comma-separated string
-date: 2026-07-12               # otherwise: today
+date: 2026-07-12               # otherwise: first publish time (stable on republish)
 description: One-line summary  # used in listings and meta tags
 canonical_url: https://…       # if cross-posted from elsewhere
 draft: true                    # publish but don't render publicly
@@ -71,7 +73,7 @@ Editing an image counts as a content change.
 
 ```bash
 cd mdpub
-cargo test          # 71 tests: unit + CLI integration (no network needed)
+cargo test          # 76 tests: unit + CLI integration (no network needed)
 cargo install --path .
 ```
 

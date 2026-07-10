@@ -134,3 +134,92 @@ mdpub publish Day1/mcp-vs-rest-design.md
   `mdpub publish --force` any article to rebuild with the new URLs.
 - Keep the system patched: `apt install unattended-upgrades` is a good
   idea on a box you rarely log into.
+
+## 8. blog-api (comments / reactions / contact)
+
+`blog-api` is a small axum service that adds comments, reactions, and a
+contact form on top of the static site. It's a separate concern from
+`mdpub`: Caddy proxies `/api/*` to it, everything else still goes to
+`/var/www/blog`. Its SQLite database lives at `/var/lib/blog-api/blog.db`
+— deliberately **outside** `/var/www/blog`, so `mdpub`'s `rsync --delete`
+never touches it.
+
+```
+reader browser -> Caddy (443, auto-HTTPS)
+   ├─ static files -> /var/www/blog        (mdpub's rsync target, unchanged)
+   └─ reverse_proxy /api/* -> 127.0.0.1:8787  (blog-api, systemd-managed)
+                                   -> SQLite at /var/lib/blog-api/blog.db
+```
+
+### Install the systemd unit
+
+Copy the unit file to the server and create its env file (as root or via
+`sudo`):
+
+```bash
+scp blog-api/deploy/blog-api.service deploy@<IP>:/tmp/
+ssh deploy@<IP>
+sudo mv /tmp/blog-api.service /etc/systemd/system/blog-api.service
+
+sudo tee /etc/blog-api.env >/dev/null <<'EOF'
+BLOG_API_ADMIN_TOKEN=<paste a long random value here>
+EOF
+sudo chmod 600 /etc/blog-api.env
+```
+
+`/etc/blog-api.env` is created manually and is **never committed** to
+git. `DynamicUser=yes` + `StateDirectory=blog-api` in the unit mean
+systemd auto-provisions both the service user and `/var/lib/blog-api` on
+first start — no manual `useradd`/`mkdir` needed.
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now blog-api
+```
+
+### Caddy
+
+Paste the `handle /api/*` block from `blog-api/deploy/caddy-snippet.conf`
+into the existing site block in `/etc/caddy/Caddyfile`, **above**
+`file_server` (Caddyfile matchers are order-sensitive — a `handle` placed
+after `file_server` never fires). Then:
+
+```bash
+caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+### Firewall
+
+No `ufw` change needed — blog-api binds `127.0.0.1:8787` only and is
+reachable exclusively through Caddy.
+
+### Nightly backup
+
+A cron entry backs up the SQLite DB every night, rotating over the 7
+weekdays:
+
+```bash
+sudo mkdir -p /var/lib/blog-api/backup
+# crontab -e (as the user that can read /var/lib/blog-api, or root)
+0 3 * * * sqlite3 /var/lib/blog-api/blog.db ".backup /var/lib/blog-api/backup/blog-$(date +\%u).db"
+```
+
+Pull the latest backup to your Mac with `blog-api/deploy.sh pull-backup`.
+Litestream (continuous streaming replication of the SQLite WAL) is the
+natural upgrade path if nightly snapshots aren't enough.
+
+### First deploy of the binary
+
+From the dev Mac:
+
+```bash
+blog-api/deploy.sh
+```
+
+This cross-compiles a static `x86_64-unknown-linux-musl` binary (the
+Mac is Apple Silicon, the server is x86_64 Linux, so a plain `cargo
+build --release` produces the wrong binary), ships it and the
+`migrations/` directory to the server, runs migrations, and restarts the
+service. See the comments at the top of `blog-api/deploy.sh` for
+one-time setup (`zig`, `cargo-zigbuild`, the musl target).
