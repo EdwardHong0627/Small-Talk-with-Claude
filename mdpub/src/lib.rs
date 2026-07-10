@@ -79,16 +79,7 @@ fn publish(
         .with_context(|| format!("{} has no parent directory", source.display()))?;
     let (body, local_images) = images::rewrite(&body, source_dir)?;
 
-    // The hash covers the article and every referenced local image, so
-    // editing an image counts as a content change.
-    let mut hash_input = raw;
-    for image in &local_images {
-        hash_input.extend(
-            std::fs::read(&image.source)
-                .with_context(|| format!("reading {}", image.source.display()))?,
-        );
-    }
-    let hash = state::hash_content(&hash_input);
+    let hash = combined_hash(&raw, &local_images, meta.draft)?;
 
     if !force && !dry_run && st.status(&key, &hash) == ArticleStatus::Published {
         let url = &st.articles[&key].url;
@@ -183,13 +174,17 @@ fn status(cwd: &Path) -> Result<i32> {
     }
     for (key, article) in &st.articles {
         let source = ws.root.join(key);
-        let label = match std::fs::read(&source) {
-            Err(_) => "missing source",
-            Ok(bytes) => match st.status(key, &state::hash_content(&bytes)) {
-                ArticleStatus::Published => "published",
-                ArticleStatus::Changed => "changed since publish",
-                ArticleStatus::Untracked => unreachable!("key comes from state"),
-            },
+        let label = if !source.exists() {
+            "missing source"
+        } else {
+            match source_hash(&source) {
+                Err(_) => "unreadable source",
+                Ok(hash) => match st.status(key, &hash) {
+                    ArticleStatus::Published => "published",
+                    ArticleStatus::Changed => "changed since publish",
+                    ArticleStatus::Untracked => unreachable!("key comes from state"),
+                },
+            }
         };
         println!("{key}  [{label}]  {}", article.url);
     }
@@ -211,6 +206,33 @@ fn unpublish(runner: &mut dyn Runner, cwd: &Path, file: &Path) -> Result<i32> {
     st.save(&ws.state_path())?;
     println!("Unpublished {key}");
     Ok(0)
+}
+
+/// The publish-state hash covers the article bytes, every referenced
+/// local image, and the draft flag — so editing an image or flipping
+/// draft→public both count as content changes. Publish and status MUST
+/// both derive hashes through this function.
+fn combined_hash(raw: &[u8], local_images: &[images::LocalImage], draft: bool) -> Result<String> {
+    let mut input = raw.to_vec();
+    for image in local_images {
+        input.extend(
+            std::fs::read(&image.source)
+                .with_context(|| format!("reading {}", image.source.display()))?,
+        );
+    }
+    input.push(draft as u8);
+    Ok(state::hash_content(&input))
+}
+
+/// Recompute the hash a plain `publish <file>` (no --draft) would record.
+fn source_hash(source: &Path) -> Result<String> {
+    let raw = std::fs::read(source)?;
+    let text = String::from_utf8(raw.clone())?;
+    let parsed = frontmatter::parse(&text)?;
+    let (meta, body) = zola::resolve(parsed.meta, &parsed.body, Local::now().date_naive(), false)?;
+    let source_dir = source.parent().context("no parent directory")?;
+    let (_, local_images) = images::rewrite(&body, source_dir)?;
+    combined_hash(&raw, &local_images, meta.draft)
 }
 
 /// Remove a page in either layout: colocated `<slug>/` directory or the
@@ -366,6 +388,30 @@ mod tests {
         run(cli, &mut mock, dir.path()).unwrap();
         let page = std::fs::read_to_string(dir.path().join("blog/content/blog/test-article/index.md")).unwrap();
         assert!(page.contains("draft = true"));
+    }
+
+    #[test]
+    fn draft_can_go_public_without_force() {
+        let (dir, article) = fixture();
+        let mut mock = MockRunner::default();
+        let draft_cli = Cli {
+            command: Command::Publish {
+                file: article.clone(),
+                dry_run: false,
+                force: false,
+                draft: true,
+            },
+        };
+        run(draft_cli, &mut mock, dir.path()).unwrap();
+
+        // Same content, draft flag dropped → must republish, not exit 2.
+        let code = run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
+        assert_eq!(code, 0);
+        let page = std::fs::read_to_string(
+            dir.path().join("blog/content/blog/test-article/index.md"),
+        )
+        .unwrap();
+        assert!(!page.contains("draft = true"));
     }
 
     #[test]
