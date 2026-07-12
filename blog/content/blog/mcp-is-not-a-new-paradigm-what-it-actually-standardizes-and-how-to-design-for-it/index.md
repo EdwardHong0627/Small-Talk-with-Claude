@@ -216,3 +216,26 @@ Push it one step further and most of "MCP design" is really just **"API design w
 - [ ] Are secrets/credentials/IDs **injected server-side** (e.g. dependency injection) rather than exposed in schemas?
 - [ ] Do **tool names and descriptions** read as clear instructions to a model, given they're runtime input?
 - [ ] Gut check: could a teammate use each tool **without your API docs open**?
+
+
+## Sources & further reading
+
+*Provenance note: the analysis in this article was developed through reasoning and discussion, not assembled from these documents. The citations below are authoritative sources that support — or, where noted, refine — the factual claims. Verify them directly rather than trusting this summary.*
+
+### MCP protocol (primary)
+- **Official specification & docs** — https://modelcontextprotocol.io (spec revision 2025-06-18; actively revised, later 2025-11-25 revision exists). Confirms: JSON-RPC 2.0; the three primitives (tools / resources / prompts); `tools/list`, `resources/read`, `prompts/list` discovery; the capability-negotiation handshake; stdio + Streamable HTTP transports; model-controlled tools with a human-in-the-loop expectation; `sampling/createMessage` (server→client LLM calls).
+- **Specification repository** — https://github.com/modelcontextprotocol/modelcontextprotocol. Created by Anthropic (David Soria Parra, Justin Spahr-Summers); spec first published November 2024.
+
+### FastMCP (primary)
+- **"What's New in FastMCP 3.0"** — https://jlowin.dev/blog/fastmcp-3-whats-new · **GA launch post** — https://jlowin.dev/blog/fastmcp-3-launch. Confirm the Components + Providers + Transforms rearchitecture; mounting / proxying / OpenAPI-generation expressed as compositions of those primitives; project move from `jlowin/fastmcp` → `PrefectHQ/fastmcp`. Release dates to January 2026.
+- **v3.0.0 release notes** — https://github.com/PrefectHQ/fastmcp/releases/tag/v3.0.0 · **changelog** — https://github.com/PrefectHQ/fastmcp/blob/main/docs/changelog.mdx. Confirm FileSystemProvider / OpenAPIProvider / ProxyProvider / SkillsProvider, component versioning + VersionFilter, per-session visibility, granular async authorization, OpenTelemetry tracing.
+- **Thesis validation (§4):** the FastMCP author notes OpenAPI generation was so popular in v2 that people "stopped designing servers and started regurgitating REST APIs," prompting a blog post asking them to stop. v3 reintroduces OpenAPI as a Provider meant to be paired with Transforms that rename and curate — "building good context rather than blindly accumulating more of it." Independent confirmation of the thin-1:1-wrapper failure mode.
+- **FastMCP 3.1 "CodeMode"** — https://github.com/PrefectHQ/fastmcp/releases/tag/v3.1.0. Confirms the token problem behind §8's tool-count point: the whole tool catalog loads into context upfront, and every call round-trips through the context window.
+
+### Corroborating secondary sources
+- **SurePrompts, "MCP: The Complete 2026 Guide"** — https://sureprompts.com/blog/model-context-protocol-mcp-complete-guide-2026. Corroborates the JSON-RPC framing, the n×m → n+m integration collapse, and "a small server with five well-described tools beats fifty."
+- **Webfuse MCP Cheat Sheet** — https://www.webfuse.com/mcp-cheat-sheet. Corroborates the primitives, transports, and standardized discovery via `tools/list`.
+
+### General patterns (established prior art — NOT re-verified against a fetched source here)
+- **Backend-for-Frontend (BFF):** Sam Newman / microservices literature.
+- **GraphQL introspection** and **gRPC server reflection:** the runtime self-description parallels drawn in §3 and §8. Consult the respective official specs for primary citations.

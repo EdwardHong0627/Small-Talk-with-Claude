@@ -26,6 +26,8 @@ article.md ──▶ mdpub ──▶ blog/content/blog/<slug>/index.md   (frontm
 |---|---|
 | `mdpub/` | The Rust CLI (`cargo install --path mdpub`) |
 | `blog/` | Zola site: config, templates, imported articles |
+| `blog-api/` | Reader-interactivity API (comments, reactions, contact) — separate service, own `deploy.sh` |
+| `approve_comments.sh` | Approve **all** pending comments in one go |
 | `docs/tutorial.md` | **Start here** — full walkthrough of writing & publishing |
 | `docs/server-setup.md` | One-time Linode + Caddy + DNS setup guide |
 | `mdpub.toml` | Deploy config (git-ignored — contains the server address) |
@@ -69,12 +71,51 @@ Local images just work: `![diagram](assets/diagram.png)` (path relative
 to the `.md` file) is copied next to the page and deployed with it.
 Editing an image counts as a content change.
 
+## Comments: the pending → approved mechanism
+
+Reader comments are served by `blog-api` (a small axum + SQLite service
+behind Caddy at `/api/*`, deployed separately via `blog-api/deploy.sh` —
+`mdpub` knows nothing about it). Comments are **moderated by default**:
+
+```
+reader submits ──▶ POST /api/comments ──▶ stored as status = 'pending'
+                                            │  (invisible to readers —
+                                            │   GET /api/comments returns
+                                            │   approved only)
+you approve  ──▶ POST /api/admin/comments/<id>/approve ──▶ 'approved', public
+```
+
+Moderation is done with `curl` + the admin bearer token (set in
+`/etc/blog-api.env` on the server, never committed):
+
+```bash
+# list what's waiting
+curl -s -H "Authorization: Bearer $TOKEN" https://edwardhong.net/api/admin/comments/pending
+
+# approve one (id from the list)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" https://edwardhong.net/api/admin/comments/<id>/approve
+
+# reject one (works on approved comments too)
+curl -s -X DELETE -H "Authorization: Bearer $TOKEN" https://edwardhong.net/api/admin/comments/<id>
+
+# or approve everything pending in one go
+TOKEN=<admin token> ./approve_comments.sh
+```
+
+To skip moderation entirely, set `BLOG_API_AUTO_APPROVE=1` in
+`/etc/blog-api.env` and restart the service — new comments then publish
+immediately (spam included, until you `DELETE` it). Unset it to return
+to moderated mode; already-approved comments stay public either way.
+
 ## Development
 
 ```bash
 cd mdpub
 cargo test          # 76 tests: unit + CLI integration (no network needed)
 cargo install --path .
+
+cd ../blog-api
+cargo test          # route-level tests against in-memory SQLite
 ```
 
 External commands (`zola`, `rsync`) sit behind a `Runner` trait and are
