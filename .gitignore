@@ -1,8 +1,8 @@
 # --- Confidential: server address, deploy target, local settings ---
 mdpub.toml
 config
-.conf
-.env
+*.conf
+*.env
 .env.*
 *.pem
 *.key
