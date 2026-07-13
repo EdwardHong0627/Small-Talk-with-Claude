@@ -2,6 +2,8 @@
 mdpub.toml
 config
 *.conf
+# …but the committed Caddy template is a secret-free example, keep it
+!blog-api/deploy/caddy-snippet.conf
 *.env
 .env.*
 *.pem
