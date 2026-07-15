@@ -65,7 +65,8 @@ pub async fn create_comment(
     if payload.slug.trim().is_empty() {
         return bad_request("slug is required");
     }
-    if let Err(e) = validate_len("author", &payload.author, 1, 80) {
+    // Author is optional (the UI renders an empty author as "anonymous").
+    if let Err(e) = validate_len("author", &payload.author, 0, 80) {
         return e;
     }
     if let Err(e) = validate_len("body", &payload.body, 1, 5000) {
