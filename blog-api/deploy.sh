@@ -37,7 +37,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 BLOG_API_SERVER="${BLOG_API_SERVER:-deploy@203.0.113.7}"
 BLOG_API_INSTALL_PATH="${BLOG_API_INSTALL_PATH:-/usr/local/bin/blog-api}"
 BLOG_API_MIGRATIONS_DIR="${BLOG_API_MIGRATIONS_DIR:-/var/lib/blog-api/migrations}"
-BLOG_API_BACKUP_DIR="${BLOG_API_BACKUP_DIR:-/var/lib/blog-api/backup}"
+BLOG_API_BACKUP_DIR="${BLOG_API_BACKUP_DIR:-/var/backups/blog-api}"
 
 TARGET="x86_64-unknown-linux-musl"
 BIN_PATH="target/${TARGET}/release/blog-api"
@@ -81,9 +81,15 @@ case "$cmd" in
     ;;
 
   pull-backup)
-    weekday="$(date +%u)"
-    remote_file="${BLOG_API_BACKUP_DIR}/blog-${weekday}.db"
-    local_file="blog-${weekday}.db"
+    # Backups are written by deploy/backup-blog-api.sh (nightly cron on the
+    # server) as blog-api-YYYY-MM-DD.sqlite3.gz. Pull the newest one.
+    remote_file="$(ssh "${BLOG_API_SERVER}" \
+      "ls -1t '${BLOG_API_BACKUP_DIR}'/blog-api-*.sqlite3.gz 2>/dev/null | head -n 1")"
+    if [ -z "${remote_file}" ]; then
+      echo "error: no backups found in ${BLOG_API_SERVER}:${BLOG_API_BACKUP_DIR}" >&2
+      exit 1
+    fi
+    local_file="$(basename "${remote_file}")"
 
     echo "==> pulling ${BLOG_API_SERVER}:${remote_file} -> ./${local_file}"
     scp "${BLOG_API_SERVER}:${remote_file}" "./${local_file}"

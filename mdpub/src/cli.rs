@@ -3,7 +3,11 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[command(name = "mdpub", version, about = "Publish markdown to your self-hosted Zola blog")]
+#[command(
+    name = "mdpub",
+    version,
+    about = "Publish markdown to your self-hosted Zola blog"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,

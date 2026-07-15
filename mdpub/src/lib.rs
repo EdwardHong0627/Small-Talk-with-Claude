@@ -22,12 +22,18 @@ pub const EXIT_UNCHANGED: i32 = 2;
 
 pub fn run(cli: Cli, runner: &mut dyn Runner, cwd: &Path) -> Result<i32> {
     match cli.command {
-        Command::Init { server, base_url, docroot, site_dir } => {
-            init(cwd, &server, &base_url, &docroot, &site_dir)
-        }
-        Command::Publish { file, dry_run, force, draft } => {
-            publish(runner, cwd, &file, dry_run, force, draft)
-        }
+        Command::Init {
+            server,
+            base_url,
+            docroot,
+            site_dir,
+        } => init(cwd, &server, &base_url, &docroot, &site_dir),
+        Command::Publish {
+            file,
+            dry_run,
+            force,
+            draft,
+        } => publish(runner, cwd, &file, dry_run, force, draft),
         Command::Preview { no_open } => preview(runner, cwd, no_open),
         Command::Status => status(cwd),
         Command::Unpublish { file } => unpublish(runner, cwd, &file),
@@ -63,8 +69,7 @@ fn publish(
 ) -> Result<i32> {
     let ws = Workspace::discover(cwd)?;
     let source = cwd.join(file);
-    let raw = std::fs::read(&source)
-        .with_context(|| format!("reading {}", source.display()))?;
+    let raw = std::fs::read(&source).with_context(|| format!("reading {}", source.display()))?;
     let text = String::from_utf8(raw.clone())
         .with_context(|| format!("{} is not valid UTF-8", source.display()))?;
 
@@ -174,7 +179,11 @@ fn publish(
     println!("  Date:   {}", meta.date.format("%Y-%m-%d %H:%M"));
     println!(
         "  Tags:   {}",
-        if meta.tags.is_empty() { "(none)".to_string() } else { meta.tags.join(", ") }
+        if meta.tags.is_empty() {
+            "(none)".to_string()
+        } else {
+            meta.tags.join(", ")
+        }
     );
     if !local_images.is_empty() {
         println!("  Images: {}", local_images.len());
@@ -281,8 +290,12 @@ fn source_hash(source: &Path) -> Result<String> {
     let raw = std::fs::read(source)?;
     let text = String::from_utf8(raw.clone())?;
     let parsed = frontmatter::parse(&text)?;
-    let (meta, body) =
-        zola::resolve(parsed.meta, &parsed.body, Local::now().fixed_offset(), false)?;
+    let (meta, body) = zola::resolve(
+        parsed.meta,
+        &parsed.body,
+        Local::now().fixed_offset(),
+        false,
+    )?;
     let source_dir = source.parent().context("no parent directory")?;
     let (_, local_images) = images::rewrite(&body, source_dir)?;
     combined_hash(&raw, &local_images, meta.draft)
@@ -300,13 +313,11 @@ fn page_exists(content_dir: &Path, slug: &str) -> bool {
 fn remove_page(content_dir: &Path, slug: &str) -> Result<()> {
     let flat = content_dir.join(format!("{slug}.md"));
     if flat.exists() {
-        std::fs::remove_file(&flat)
-            .with_context(|| format!("removing {}", flat.display()))?;
+        std::fs::remove_file(&flat).with_context(|| format!("removing {}", flat.display()))?;
     }
     let dir = content_dir.join(slug);
     if dir.exists() {
-        std::fs::remove_dir_all(&dir)
-            .with_context(|| format!("removing {}", dir.display()))?;
+        std::fs::remove_dir_all(&dir).with_context(|| format!("removing {}", dir.display()))?;
     }
     Ok(())
 }
@@ -421,7 +432,10 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("refusing to deploy"), "unexpected: {err}");
-        assert!(err.contains("post.md"), "should name the missing article: {err}");
+        assert!(
+            err.contains("post.md"),
+            "should name the missing article: {err}"
+        );
         assert_eq!(mock.calls.len(), 4, "no build/deploy after refusal");
     }
 
@@ -441,7 +455,11 @@ mod tests {
         // regenerate the import without deploying.
         let code = run(publish_cmd(&article, true, false), &mut mock, dir.path()).unwrap();
         assert_eq!(code, 0);
-        assert!(dir.path().join("blog/content/blog/test-article/index.md").exists());
+        assert!(
+            dir.path()
+                .join("blog/content/blog/test-article/index.md")
+                .exists()
+        );
         assert_eq!(mock.calls.len(), 5, "dry run adds a build, never a deploy");
         assert_eq!(mock.calls[4].args[0], "build");
     }
@@ -458,7 +476,11 @@ mod tests {
         // exit 2) and recreate the page.
         let code = run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
         assert_eq!(code, 0);
-        assert!(dir.path().join("blog/content/blog/test-article/index.md").exists());
+        assert!(
+            dir.path()
+                .join("blog/content/blog/test-article/index.md")
+                .exists()
+        );
         assert_eq!(mock.calls.len(), 4, "build + deploy ran again");
     }
 
@@ -477,12 +499,20 @@ mod tests {
         let (dir, article) = fixture();
         let mut mock = MockRunner::default();
         run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
-        assert!(dir.path().join("blog/content/blog/test-article/index.md").exists());
+        assert!(
+            dir.path()
+                .join("blog/content/blog/test-article/index.md")
+                .exists()
+        );
 
         std::fs::write(&article, "# New Name\n\nHello.\n").unwrap();
         run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
         assert!(!dir.path().join("blog/content/blog/test-article").exists());
-        assert!(dir.path().join("blog/content/blog/new-name/index.md").exists());
+        assert!(
+            dir.path()
+                .join("blog/content/blog/new-name/index.md")
+                .exists()
+        );
     }
 
     #[test]
@@ -504,10 +534,17 @@ mod tests {
         let (dir, article) = fixture();
         let mut mock = MockRunner::default();
         let cli = Cli {
-            command: Command::Publish { file: article, dry_run: true, force: false, draft: true },
+            command: Command::Publish {
+                file: article,
+                dry_run: true,
+                force: false,
+                draft: true,
+            },
         };
         run(cli, &mut mock, dir.path()).unwrap();
-        let page = std::fs::read_to_string(dir.path().join("blog/content/blog/test-article/index.md")).unwrap();
+        let page =
+            std::fs::read_to_string(dir.path().join("blog/content/blog/test-article/index.md"))
+                .unwrap();
         assert!(page.contains("draft = true"));
     }
 
@@ -528,10 +565,9 @@ mod tests {
         // Same content, draft flag dropped → must republish, not exit 2.
         let code = run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
         assert_eq!(code, 0);
-        let page = std::fs::read_to_string(
-            dir.path().join("blog/content/blog/test-article/index.md"),
-        )
-        .unwrap();
+        let page =
+            std::fs::read_to_string(dir.path().join("blog/content/blog/test-article/index.md"))
+                .unwrap();
         assert!(!page.contains("draft = true"));
     }
 
@@ -559,7 +595,11 @@ mod tests {
 
         std::thread::sleep(std::time::Duration::from_millis(20));
         run(publish_cmd(&article, false, true), &mut mock, dir.path()).unwrap();
-        assert_eq!(date_line(&page_path), first_date, "date drifted on republish");
+        assert_eq!(
+            date_line(&page_path),
+            first_date,
+            "date drifted on republish"
+        );
 
         let second_state = State::load(&dir.path().join(config::STATE_FILE)).unwrap();
         assert_eq!(
@@ -574,7 +614,9 @@ mod tests {
         let mut mock = MockRunner::default();
         run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
 
-        let cli = Cli { command: Command::Unpublish { file: article } };
+        let cli = Cli {
+            command: Command::Unpublish { file: article },
+        };
         let code = run(cli, &mut mock, dir.path()).unwrap();
         assert_eq!(code, 0);
         assert!(!dir.path().join("blog/content/blog/test-article").exists());
@@ -588,7 +630,9 @@ mod tests {
     fn unpublish_untracked_errors() {
         let (dir, article) = fixture();
         let mut mock = MockRunner::default();
-        let cli = Cli { command: Command::Unpublish { file: article } };
+        let cli = Cli {
+            command: Command::Unpublish { file: article },
+        };
         let err = run(cli, &mut mock, dir.path()).unwrap_err().to_string();
         assert!(err.contains("not tracked"));
     }
@@ -666,7 +710,13 @@ mod tests {
         let mut mock = MockRunner::default();
         assert_eq!(run(cli(), &mut mock, dir.path()).unwrap(), 0);
         let written = std::fs::read_to_string(dir.path().join(CONFIG_FILE)).unwrap();
-        assert!(written.contains("base_url = \"https://blog.example.com\""), "trailing slash trimmed");
-        assert!(run(cli(), &mut mock, dir.path()).is_err(), "refuses to overwrite");
+        assert!(
+            written.contains("base_url = \"https://blog.example.com\""),
+            "trailing slash trimmed"
+        );
+        assert!(
+            run(cli(), &mut mock, dir.path()).is_err(),
+            "refuses to overwrite"
+        );
     }
 }

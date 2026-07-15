@@ -76,14 +76,18 @@ impl Workspace {
 
     /// URL of a published article for a given slug.
     pub fn article_url(&self, slug: &str) -> String {
-        format!("{}/blog/{}/", self.config.base_url.trim_end_matches('/'), slug)
+        format!(
+            "{}/blog/{}/",
+            self.config.base_url.trim_end_matches('/'),
+            slug
+        )
     }
 }
 
 impl Config {
     pub fn load(path: &Path) -> Result<Config> {
-        let raw = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let config: Config =
             toml::from_str(&raw).with_context(|| format!("parsing {}", path.display()))?;
         if config.base_url.is_empty() || config.server.is_empty() || config.docroot.is_empty() {

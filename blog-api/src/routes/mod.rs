@@ -17,18 +17,15 @@ pub(crate) fn bad_request(msg: impl Into<String>) -> Response {
 }
 
 /// Validate that a trimmed string's length is within `[min, max]`
-/// (inclusive) characters.
-pub(crate) fn validate_len(
-    field: &str,
-    value: &str,
-    min: usize,
-    max: usize,
-) -> Result<(), Response> {
+/// (inclusive) characters. On failure, returns the error message to embed
+/// in a `400 Bad Request` response (kept small so `Result`'s `Err` variant
+/// stays cheap to return, unlike a full `Response`).
+pub(crate) fn validate_len(field: &str, value: &str, min: usize, max: usize) -> Result<(), String> {
     let len = value.trim().chars().count();
     if len < min || len > max {
-        return Err(bad_request(format!(
+        return Err(format!(
             "{field} must be between {min} and {max} characters"
-        )));
+        ));
     }
     Ok(())
 }
@@ -37,7 +34,10 @@ pub(crate) fn validate_len(
 pub fn build_router(state: AppState) -> Router {
     let admin_routes = Router::new()
         .route("/api/admin/comments/pending", get(admin::pending_comments))
-        .route("/api/admin/comments/:id/approve", post(admin::approve_comment))
+        .route(
+            "/api/admin/comments/:id/approve",
+            post(admin::approve_comment),
+        )
         .route("/api/admin/comments/:id", delete(admin::delete_comment))
         .route("/api/admin/contact", get(admin::list_contact))
         .layer(middleware::from_fn_with_state(

@@ -194,18 +194,45 @@ sudo systemctl reload caddy
 No `ufw` change needed — blog-api binds `127.0.0.1:8787` only and is
 reachable exclusively through Caddy.
 
-### Nightly backup
+### Backups
 
-A cron entry backs up the SQLite DB every night, rotating over the 7
-weekdays:
+`blog-api/deploy/backup-blog-api.sh` takes a nightly online snapshot of
+the SQLite DB (`sqlite3 .backup`, not `cp` — safe to run against a live
+DB), gzips it, and writes it to `/var/backups/blog-api/`, keeping the
+newest 7 and pruning older ones.
+
+Install it (as root or via `sudo` on the Linode):
 
 ```bash
-sudo mkdir -p /var/lib/blog-api/backup
-# crontab -e (as the user that can read /var/lib/blog-api, or root)
-0 3 * * * sqlite3 /var/lib/blog-api/blog.db ".backup /var/lib/blog-api/backup/blog-$(date +\%u).db"
+sudo apt install -y sqlite3   # if not already installed
+
+scp blog-api/deploy/backup-blog-api.sh deploy@<IP>:/tmp/
+ssh deploy@<IP>
+sudo mv /tmp/backup-blog-api.sh /usr/local/bin/backup-blog-api.sh
+sudo chmod +x /usr/local/bin/backup-blog-api.sh
 ```
 
-Pull the latest backup to your Mac with `blog-api/deploy.sh pull-backup`.
+Add the cron entry (3:17am daily):
+
+```bash
+sudo crontab -e
+# add this line:
+17 3 * * * /usr/local/bin/backup-blog-api.sh
+```
+
+Verify a backup actually restores:
+
+```bash
+gunzip -c /var/backups/blog-api/blog-api-$(date +%F).sqlite3.gz \
+  | sqlite3 /tmp/restore-test.db '.tables'
+```
+
+Pull backups off-box to your Mac (optional):
+
+```bash
+rsync -az deploy@<IP>:/var/backups/blog-api/ ./blog-api-backups/
+```
+
 Litestream (continuous streaming replication of the SQLite WAL) is the
 natural upgrade path if nightly snapshots aren't enough.
 
