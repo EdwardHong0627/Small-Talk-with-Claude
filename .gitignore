@@ -12,7 +12,8 @@ id_rsa*
 id_ed25519*
 .claude/settings.local.json
 .serena/
-
+.venv
+.vscode
 # --- Local state (machine-specific publish tracking) ---
 .mdpub-state.json
 .mdpub-state.json.tmp
