@@ -55,7 +55,10 @@ pub fn client_ip(headers: &HeaderMap, peer_addr: Option<SocketAddr>) -> String {
 /// Middleware that resolves the client IP (see [`client_ip`]) and inserts a
 /// [`ClientIp`] extension for downstream middleware/handlers to use.
 pub async fn client_ip_middleware(mut req: Request<Body>, next: Next) -> Response {
-    let peer = req.extensions().get::<ConnectInfo<SocketAddr>>().map(|c| c.0);
+    let peer = req
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|c| c.0);
     let ip = client_ip(req.headers(), peer);
     req.extensions_mut().insert(ClientIp(ip));
     next.run(req).await
@@ -87,7 +90,7 @@ impl RateLimiter {
     /// Record a request for `(key, route)` and return `true` if it is
     /// allowed under the current window, `false` if the limit was exceeded.
     pub fn check(&self, key: &str, route: &str) -> bool {
-        let mut windows = self.windows.lock().unwrap();
+        let mut windows = self.windows.lock().unwrap_or_else(|e| e.into_inner());
         let now = Instant::now();
         let entry = windows
             .entry((key.to_string(), route.to_string()))

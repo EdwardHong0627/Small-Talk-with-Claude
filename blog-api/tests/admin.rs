@@ -15,7 +15,9 @@ async fn seed_pending_comment(app: &axum::Router, slug: &str) -> i64 {
     .await;
     assert_eq!(status, StatusCode::OK);
     let (_, pending) = send(app, get_auth("/api/admin/comments/pending", ADMIN_TOKEN)).await;
-    pending.as_array().unwrap().last().unwrap()["id"].as_i64().unwrap()
+    pending.as_array().unwrap().last().unwrap()["id"]
+        .as_i64()
+        .unwrap()
 }
 
 #[tokio::test]

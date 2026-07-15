@@ -48,8 +48,8 @@ impl State {
                 ..State::default()
             });
         }
-        let raw = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         serde_json::from_str(&raw).with_context(|| format!("parsing {}", path.display()))
     }
 
@@ -60,8 +60,7 @@ impl State {
         let tmp = dir.join(".mdpub-state.json.tmp");
         std::fs::write(&tmp, json.as_bytes())
             .with_context(|| format!("writing {}", tmp.display()))?;
-        std::fs::rename(&tmp, path)
-            .with_context(|| format!("renaming into {}", path.display()))?;
+        std::fs::rename(&tmp, path).with_context(|| format!("renaming into {}", path.display()))?;
         Ok(())
     }
 
@@ -118,7 +117,10 @@ mod tests {
             .insert("Day1/foo.md".into(), article("foo", "blake3:abc"));
         state.save(&path).unwrap();
         let reloaded = State::load(&path).unwrap();
-        assert_eq!(reloaded.articles["Day1/foo.md"], state.articles["Day1/foo.md"]);
+        assert_eq!(
+            reloaded.articles["Day1/foo.md"],
+            state.articles["Day1/foo.md"]
+        );
         // No leftover temp file from the atomic write.
         assert!(!dir.path().join(".mdpub-state.json.tmp").exists());
     }

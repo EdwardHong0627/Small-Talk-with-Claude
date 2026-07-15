@@ -82,10 +82,12 @@ async fn main() {
         std::process::exit(1);
     });
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|e| {
-        eprintln!("failed to bind {addr}: {e}");
-        std::process::exit(1);
-    });
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("failed to bind {addr}: {e}");
+            std::process::exit(1);
+        });
 
     tracing::info!(%addr, "blog-api listening");
 
