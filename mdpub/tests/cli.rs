@@ -141,6 +141,37 @@ fn status_reflects_content_changes() {
 }
 
 #[test]
+fn status_flags_missing_import_and_publish_refuses_to_deploy() {
+    let fx = Fixture::new();
+    fx.cmd(&["publish", "Day1/post.md"]).assert().success();
+
+    // Simulate drift: the imported page vanishes (e.g. a fresh checkout
+    // where it was never committed).
+    fs::remove_dir_all(fx.dir.path().join("blog/content/blog/integration-post")).unwrap();
+
+    fx.cmd(&["status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[missing import"));
+
+    // Publishing a second article must refuse to deploy over the gap.
+    fs::write(fx.dir.path().join("Day1/other.md"), "# Other Post\n\nBody.\n").unwrap();
+    fx.cmd(&["publish", "Day1/other.md"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("refusing to deploy"));
+    assert_eq!(fx.log(&fx.rsync_log).lines().count(), 1, "no second deploy");
+
+    // The documented remedy regenerates the import; publish then succeeds.
+    fx.cmd(&["publish", "Day1/post.md", "--dry-run"]).assert().success();
+    fx.cmd(&["publish", "Day1/other.md"]).assert().success();
+    fx.cmd(&["status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Day1/post.md  [published]"));
+}
+
+#[test]
 fn unpublish_removes_page_and_redeploys() {
     let fx = Fixture::new();
     fx.cmd(&["publish", "Day1/post.md"]).assert().success();

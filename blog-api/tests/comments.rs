@@ -54,6 +54,48 @@ async fn pending_comment_not_visible_until_approved() {
 }
 
 #[tokio::test]
+async fn empty_author_comment_accepted() {
+    // The UI labels the name field "(optional)" and renders an empty
+    // author as "anonymous" — the API must accept an empty author.
+    let app = build_test_app();
+
+    let (status, _) = send(
+        &app,
+        json_post(
+            "/api/comments",
+            json!({
+                "slug": "hello-world",
+                "author": "",
+                "body": "Posting anonymously.",
+                "hp": ""
+            }),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, pending) = send(&app, get_auth("/api/admin/comments/pending", ADMIN_TOKEN)).await;
+    assert_eq!(status, StatusCode::OK);
+    let pending = pending.as_array().unwrap();
+    assert_eq!(pending.len(), 1);
+    let id = pending[0]["id"].as_i64().unwrap();
+
+    let (status, _) = send(
+        &app,
+        post_auth(&format!("/api/admin/comments/{id}/approve"), ADMIN_TOKEN),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, body) = send(&app, get("/api/comments?slug=hello-world")).await;
+    assert_eq!(status, StatusCode::OK);
+    let comments = body.as_array().unwrap();
+    assert_eq!(comments.len(), 1);
+    assert_eq!(comments[0]["author"], "");
+    assert_eq!(comments[0]["body"], "Posting anonymously.");
+}
+
+#[tokio::test]
 async fn auto_approve_comment_visible_immediately() {
     let app = build_test_app_auto_approve();
 

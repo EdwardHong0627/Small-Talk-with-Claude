@@ -64,6 +64,34 @@ async fn honeypot_filled_contact_is_silently_dropped() {
 }
 
 #[tokio::test]
+async fn empty_name_contact_accepted() {
+    // The UI labels the name field "(optional)" — the API must accept an
+    // empty name.
+    let app = build_test_app();
+
+    let (status, _) = send(
+        &app,
+        json_post(
+            "/api/contact",
+            json!({
+                "name": "",
+                "email": "alice@example.com",
+                "message": "No name given.",
+                "hp": ""
+            }),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, body) = send(&app, get_auth("/api/admin/contact", ADMIN_TOKEN)).await;
+    assert_eq!(status, StatusCode::OK);
+    let messages = body.as_array().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0]["name"], "");
+}
+
+#[tokio::test]
 async fn rejects_invalid_email() {
     let app = build_test_app();
     let (status, _) = send(

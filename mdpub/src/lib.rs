@@ -96,9 +96,19 @@ fn publish(
     let hash = combined_hash(&raw, &local_images, meta.draft)?;
 
     if !force && !dry_run && st.status(&key, &hash) == ArticleStatus::Published {
-        let url = &st.articles[&key].url;
-        eprintln!("unchanged since last publish ({url}) — use --force to republish");
-        return Ok(EXIT_UNCHANGED);
+        let article = &st.articles[&key];
+        // Self-heal: only short-circuit when the imported page actually
+        // exists — if it went missing (e.g. never committed, or a fresh
+        // checkout), fall through and regenerate it.
+        if page_exists(&ws.content_dir(), &article.slug) {
+            let url = &article.url;
+            eprintln!("unchanged since last publish ({url}) — use --force to republish");
+            return Ok(EXIT_UNCHANGED);
+        }
+        eprintln!(
+            "unchanged, but import missing under {} — regenerating",
+            ws.content_dir().join(&article.slug).display()
+        );
     }
 
     if let Some(owner) = st.slug_owner(&meta.slug, &key) {
@@ -106,6 +116,32 @@ fn publish(
             "slug {:?} is already used by {owner} — retitle one of the articles",
             meta.slug
         );
+    }
+
+    // Drift guard: the deployed site is a full mirror (rsync --delete), so
+    // deploying while another tracked article's import is missing would
+    // silently delete that article from the live site. Refuse and explain.
+    // Dry runs are exempt — they never deploy, and are themselves the
+    // remedy for a missing import.
+    if !dry_run {
+        let missing: Vec<String> = st
+            .articles
+            .iter()
+            .filter(|(k, _)| *k != &key)
+            .filter(|(_, a)| !page_exists(&ws.content_dir(), &a.slug))
+            .map(|(k, a)| format!("  {k}  (slug: {})", a.slug))
+            .collect();
+        if !missing.is_empty() {
+            bail!(
+                "refusing to deploy: {} tracked article(s) have no import under {} — \
+                 deploying now would delete them from the live site.\n{}\n\
+                 Regenerate with `mdpub publish <file> --dry-run` (then retry), or drop \
+                 with `mdpub unpublish <file>`.",
+                missing.len(),
+                ws.content_dir().display(),
+                missing.join("\n")
+            );
+        }
     }
 
     // A retitled article gets a new slug; drop the page written under the
@@ -190,6 +226,8 @@ fn status(cwd: &Path) -> Result<i32> {
         let source = ws.root.join(key);
         let label = if !source.exists() {
             "missing source"
+        } else if !page_exists(&ws.content_dir(), &article.slug) {
+            "missing import — run `mdpub publish <file> --dry-run` to regenerate"
         } else {
             match source_hash(&source) {
                 Err(_) => "unreadable source",
@@ -248,6 +286,13 @@ fn source_hash(source: &Path) -> Result<String> {
     let source_dir = source.parent().context("no parent directory")?;
     let (_, local_images) = images::rewrite(&body, source_dir)?;
     combined_hash(&raw, &local_images, meta.draft)
+}
+
+/// True if the imported page for `slug` exists in either layout: colocated
+/// `<slug>/` directory or the flat `<slug>.md` file written by earlier
+/// versions.
+fn page_exists(content_dir: &Path, slug: &str) -> bool {
+    content_dir.join(slug).is_dir() || content_dir.join(format!("{slug}.md")).is_file()
 }
 
 /// Remove a page in either layout: colocated `<slug>/` directory or the
@@ -354,6 +399,67 @@ mod tests {
         let code = run(publish_cmd(&article, false, true), &mut mock, dir.path()).unwrap();
         assert_eq!(code, 0);
         assert_eq!(mock.calls.len(), 4);
+    }
+
+    #[test]
+    fn publish_refuses_when_another_import_is_missing() {
+        let (dir, article) = fixture();
+        let other = dir.path().join("other.md");
+        std::fs::write(&other, "# Other Article\n\nHello.\n").unwrap();
+
+        let mut mock = MockRunner::default();
+        run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
+        run(publish_cmd(&other, false, false), &mut mock, dir.path()).unwrap();
+        assert_eq!(mock.calls.len(), 4);
+
+        // Simulate drift: the first article's import vanishes (e.g. fresh
+        // checkout where it was never committed).
+        std::fs::remove_dir_all(dir.path().join("blog/content/blog/test-article")).unwrap();
+
+        std::fs::write(&other, "# Other Article\n\nEdited.\n").unwrap();
+        let err = run(publish_cmd(&other, false, false), &mut mock, dir.path())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("refusing to deploy"), "unexpected: {err}");
+        assert!(err.contains("post.md"), "should name the missing article: {err}");
+        assert_eq!(mock.calls.len(), 4, "no build/deploy after refusal");
+    }
+
+    #[test]
+    fn dry_run_allowed_when_another_import_is_missing() {
+        let (dir, article) = fixture();
+        let other = dir.path().join("other.md");
+        std::fs::write(&other, "# Other Article\n\nHello.\n").unwrap();
+
+        let mut mock = MockRunner::default();
+        run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
+        run(publish_cmd(&other, false, false), &mut mock, dir.path()).unwrap();
+
+        std::fs::remove_dir_all(dir.path().join("blog/content/blog/test-article")).unwrap();
+
+        // The dry-run is the documented remedy: it must succeed and
+        // regenerate the import without deploying.
+        let code = run(publish_cmd(&article, true, false), &mut mock, dir.path()).unwrap();
+        assert_eq!(code, 0);
+        assert!(dir.path().join("blog/content/blog/test-article/index.md").exists());
+        assert_eq!(mock.calls.len(), 5, "dry run adds a build, never a deploy");
+        assert_eq!(mock.calls[4].args[0], "build");
+    }
+
+    #[test]
+    fn unchanged_publish_regenerates_missing_own_import() {
+        let (dir, article) = fixture();
+        let mut mock = MockRunner::default();
+        run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
+
+        std::fs::remove_dir_all(dir.path().join("blog/content/blog/test-article")).unwrap();
+
+        // Content unchanged, but the import is gone: must republish (not
+        // exit 2) and recreate the page.
+        let code = run(publish_cmd(&article, false, false), &mut mock, dir.path()).unwrap();
+        assert_eq!(code, 0);
+        assert!(dir.path().join("blog/content/blog/test-article/index.md").exists());
+        assert_eq!(mock.calls.len(), 4, "build + deploy ran again");
     }
 
     #[test]

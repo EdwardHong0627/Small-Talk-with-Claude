@@ -28,7 +28,8 @@ pub async fn create_contact(
         return StatusCode::OK.into_response();
     }
 
-    if let Err(e) = validate_len("name", &payload.name, 1, 80) {
+    // Name is optional, matching the "name (optional)" label in the UI.
+    if let Err(e) = validate_len("name", &payload.name, 0, 80) {
         return e;
     }
     if let Err(e) = validate_len("email", &payload.email, 3, 254) {

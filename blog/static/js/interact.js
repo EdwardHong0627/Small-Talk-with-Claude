@@ -49,6 +49,19 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
+  // Turn a non-OK API response into a rejection carrying the server's
+  // error message ({"error": "..."}), so forms can show the real reason.
+  // The message is only ever assigned via textContent downstream.
+  function rejectWithApiError(res) {
+    return res.json()
+      .catch(function () { return null; })
+      .then(function (data) {
+        var err = new Error((data && typeof data.error === 'string') ? data.error : '');
+        err.isApiError = true;
+        throw err;
+      });
+  }
+
   function fmtDate(value) {
     if (!value) return '';
     var d = new Date(value);
@@ -197,7 +210,7 @@
         body: JSON.stringify({ slug: slug, author: author, body: body, hp: hp })
       })
         .then(function (res) {
-          if (!res.ok) throw new Error('submit failed');
+          if (!res.ok) return rejectWithApiError(res);
           return res.json().catch(function () { return null; });
         })
         .then(function () {
@@ -206,8 +219,12 @@
           var inputs = form.querySelectorAll('input, textarea, button');
           inputs.forEach(function (i) { i.disabled = true; });
         })
-        .catch(function () {
-          if (statusEl) statusEl.textContent = 'could not submit comment — please try again later.';
+        .catch(function (err) {
+          if (statusEl) {
+            statusEl.textContent = (err && err.isApiError && err.message)
+              ? err.message
+              : 'could not submit comment — please try again later.';
+          }
           if (submitBtn) submitBtn.disabled = false;
         });
     });
@@ -248,7 +265,7 @@
         body: JSON.stringify({ name: name, email: email, message: message, hp: hp })
       })
         .then(function (res) {
-          if (!res.ok) throw new Error('submit failed');
+          if (!res.ok) return rejectWithApiError(res);
           return res.json().catch(function () { return null; });
         })
         .then(function () {
@@ -257,8 +274,12 @@
           var inputs = form.querySelectorAll('input, textarea, button');
           inputs.forEach(function (i) { i.disabled = true; });
         })
-        .catch(function () {
-          if (statusEl) statusEl.textContent = 'could not send message — please try again later.';
+        .catch(function (err) {
+          if (statusEl) {
+            statusEl.textContent = (err && err.isApiError && err.message)
+              ? err.message
+              : 'could not send message — please try again later.';
+          }
           if (submitBtn) submitBtn.disabled = false;
         });
     });
