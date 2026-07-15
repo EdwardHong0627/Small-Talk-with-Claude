@@ -32,6 +32,18 @@ pub fn build_test_app_auto_approve() -> Router {
 
 #[allow(dead_code)]
 pub fn build_test_app_full(limit: u32, window: Duration, auto_approve: bool) -> Router {
+    build_test_app_with_state(limit, window, auto_approve).1
+}
+
+/// Like [`build_test_app_full`], but also returns the [`AppState`] so callers
+/// can reach into the shared connection (e.g. to corrupt the schema and
+/// exercise error handling) before or after making requests.
+#[allow(dead_code)]
+pub fn build_test_app_with_state(
+    limit: u32,
+    window: Duration,
+    auto_approve: bool,
+) -> (AppState, Router) {
     let conn = Connection::open_in_memory().expect("open in-memory db");
     db::migrate(&conn).expect("migrate");
     let state = AppState {
@@ -40,7 +52,8 @@ pub fn build_test_app_full(limit: u32, window: Duration, auto_approve: bool) -> 
         rate_limiter: Arc::new(RateLimiter::new(limit, window)),
         auto_approve,
     };
-    blog_api::build_app(state)
+    let app = blog_api::build_app(state.clone());
+    (state, app)
 }
 
 #[allow(dead_code)]

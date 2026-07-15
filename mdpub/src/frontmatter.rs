@@ -115,10 +115,7 @@ fn resolve_raw(raw: RawMeta) -> Result<Meta> {
             .filter(|t| !t.is_empty())
             .collect(),
     };
-    let date = raw
-        .date
-        .map(|d| parse_date(&d))
-        .transpose()?;
+    let date = raw.date.map(|d| parse_date(&d)).transpose()?;
     Ok(Meta {
         title: raw.title,
         slug: raw.slug,
@@ -175,8 +172,15 @@ mod tests {
         assert_eq!(parsed.meta.title.as_deref(), Some("My Post"));
         assert_eq!(parsed.meta.tags, vec!["rust", "apis"]);
         let date = parsed.meta.date.unwrap();
-        assert_eq!(date.date_naive(), NaiveDate::from_ymd_opt(2026, 7, 10).unwrap());
-        assert_eq!(date.time(), chrono::NaiveTime::MIN, "date-only means midnight");
+        assert_eq!(
+            date.date_naive(),
+            NaiveDate::from_ymd_opt(2026, 7, 10).unwrap()
+        );
+        assert_eq!(
+            date.time(),
+            chrono::NaiveTime::MIN,
+            "date-only means midnight"
+        );
         assert!(parsed.meta.draft);
         assert_eq!(
             parsed.meta.canonical_url.as_deref(),

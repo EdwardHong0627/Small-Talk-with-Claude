@@ -138,7 +138,11 @@ async fn auto_approve_comment_visible_immediately() {
     .await;
     assert_eq!(status, StatusCode::OK);
     let (_, body) = send(&app, get("/api/comments?slug=hello-world")).await;
-    assert_eq!(body.as_array().unwrap().len(), 1, "honeypot submission must not persist");
+    assert_eq!(
+        body.as_array().unwrap().len(),
+        1,
+        "honeypot submission must not persist"
+    );
 }
 
 #[tokio::test]
@@ -172,6 +176,51 @@ async fn rejects_missing_slug_on_get() {
     let app = build_test_app();
     let (status, _) = send(&app, get("/api/comments")).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn db_error_returns_500() {
+    // Corrupt the schema out from under the app (simulating some other kind
+    // of database failure) and confirm the handler reports a 500 instead of
+    // panicking -- and that the shared mutex is still usable afterwards
+    // (i.e. it wasn't poisoned).
+    let (state, app) = build_test_app_with_state(1000, std::time::Duration::from_secs(60), false);
+    state
+        .conn()
+        .execute("DROP TABLE comments", [])
+        .expect("drop comments table");
+
+    let (status, _) = send(
+        &app,
+        json_post(
+            "/api/comments",
+            json!({
+                "slug": "hello-world",
+                "author": "Alice",
+                "body": "Great post!",
+                "hp": ""
+            }),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+
+    // A second request must still get a normal response -- the mutex was
+    // not poisoned by the first failure.
+    let (status, _) = send(
+        &app,
+        json_post(
+            "/api/comments",
+            json!({
+                "slug": "hello-world",
+                "author": "Bob",
+                "body": "Still broken, still not a panic.",
+                "hp": ""
+            }),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[tokio::test]

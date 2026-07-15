@@ -94,11 +94,7 @@ fn validate_slug(slug: &str) -> Result<()> {
     let is_kebab = slug
         .chars()
         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
-    if !is_kebab
-        || slug.starts_with('-')
-        || slug.ends_with('-')
-        || slug.contains("--")
-    {
+    if !is_kebab || slug.starts_with('-') || slug.ends_with('-') || slug.contains("--") {
         bail!(
             "slug {slug:?} must be lowercase kebab-case (letters, digits, single hyphens, no leading/trailing hyphen)"
         );
@@ -115,7 +111,10 @@ pub fn render_page(meta: &ResolvedMeta, body: &str) -> String {
     }
     // Full offset datetime (a bare TOML value, not a string) so Zola
     // orders same-day posts by publish time.
-    fm.push_str(&format!("date = {}\n", meta.date.format("%Y-%m-%dT%H:%M:%S%:z")));
+    fm.push_str(&format!(
+        "date = {}\n",
+        meta.date.format("%Y-%m-%dT%H:%M:%S%:z")
+    ));
     fm.push_str(&format!("slug = {}\n", toml_str(&meta.slug)));
     if meta.draft {
         fm.push_str("draft = true\n");
@@ -177,7 +176,14 @@ mod tests {
 
     #[test]
     fn resolve_rejects_invalid_slug_override() {
-        for bad in ["", "Has Spaces", "Upper-Case", "-leading", "trailing-", "double--dash"] {
+        for bad in [
+            "",
+            "Has Spaces",
+            "Upper-Case",
+            "-leading",
+            "trailing-",
+            "double--dash",
+        ] {
             let meta = Meta {
                 title: Some("T".into()),
                 slug: Some(bad.into()),
@@ -228,8 +234,7 @@ mod tests {
 
     #[test]
     fn resolve_force_draft_wins() {
-        let (resolved, _) =
-            resolve(Meta::default(), "# T\nx\n", today(), true).unwrap();
+        let (resolved, _) = resolve(Meta::default(), "# T\nx\n", today(), true).unwrap();
         assert!(resolved.draft);
     }
 

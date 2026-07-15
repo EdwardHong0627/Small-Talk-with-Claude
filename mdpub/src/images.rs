@@ -46,10 +46,11 @@ fn rewrite_line(
 ) -> Result<String> {
     let mut result = String::new();
     let mut rest = line;
-    loop {
-        // An image reference is `![alt](target)`.
-        let Some(bang) = rest.find("![") else { break };
-        let Some(paren_open) = rest[bang..].find("](").map(|i| bang + i) else { break };
+    // An image reference is `![alt](target)`.
+    while let Some(bang) = rest.find("![") {
+        let Some(paren_open) = rest[bang..].find("](").map(|i| bang + i) else {
+            break;
+        };
         let Some(paren_close) = rest[paren_open..].find(')').map(|i| paren_open + i) else {
             break;
         };
@@ -79,7 +80,10 @@ fn rewrite_line(
                 .into_owned();
             let file_name = unique_name(&desired, &source, names);
             if !images.iter().any(|i| i.file_name == file_name) {
-                images.push(LocalImage { source: source.clone(), file_name: file_name.clone() });
+                images.push(LocalImage {
+                    source: source.clone(),
+                    file_name: file_name.clone(),
+                });
             }
             result.push_str(&file_name);
             result.push_str(title_part);
@@ -144,8 +148,7 @@ mod tests {
     #[test]
     fn local_image_is_rewritten_and_collected() {
         let dir = setup(&["manuscript.png"]);
-        let (body, images) =
-            rewrite("Intro\n\n![The plan](manuscript.png)\n", dir.path()).unwrap();
+        let (body, images) = rewrite("Intro\n\n![The plan](manuscript.png)\n", dir.path()).unwrap();
         assert_eq!(body, "Intro\n\n![The plan](manuscript.png)\n");
         assert_eq!(images.len(), 1);
         assert_eq!(images[0].file_name, "manuscript.png");
@@ -155,8 +158,7 @@ mod tests {
     #[test]
     fn relative_subdir_flattens_to_file_name() {
         let dir = setup(&["assets/diagram.png"]);
-        let (body, images) =
-            rewrite("![d](assets/diagram.png)\n", dir.path()).unwrap();
+        let (body, images) = rewrite("![d](assets/diagram.png)\n", dir.path()).unwrap();
         assert_eq!(body, "![d](diagram.png)\n");
         assert_eq!(images[0].source, dir.path().join("assets/diagram.png"));
     }
@@ -180,7 +182,9 @@ mod tests {
     #[test]
     fn missing_local_image_errors() {
         let dir = setup(&[]);
-        let err = rewrite("![x](nope.png)\n", dir.path()).unwrap_err().to_string();
+        let err = rewrite("![x](nope.png)\n", dir.path())
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("nope.png"), "unexpected: {err}");
     }
 
@@ -196,8 +200,7 @@ mod tests {
     #[test]
     fn name_collision_from_different_dirs_gets_suffix() {
         let dir = setup(&["a/pic.png", "b/pic.png"]);
-        let (body, images) =
-            rewrite("![1](a/pic.png)\n![2](b/pic.png)\n", dir.path()).unwrap();
+        let (body, images) = rewrite("![1](a/pic.png)\n![2](b/pic.png)\n", dir.path()).unwrap();
         assert_eq!(body, "![1](pic.png)\n![2](pic-2.png)\n");
         assert_eq!(images.len(), 2);
         assert_eq!(images[1].file_name, "pic-2.png");
@@ -206,8 +209,7 @@ mod tests {
     #[test]
     fn same_image_twice_is_copied_once() {
         let dir = setup(&["pic.png"]);
-        let (_, images) =
-            rewrite("![1](pic.png)\n![again](pic.png)\n", dir.path()).unwrap();
+        let (_, images) = rewrite("![1](pic.png)\n![again](pic.png)\n", dir.path()).unwrap();
         assert_eq!(images.len(), 1);
     }
 

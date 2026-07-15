@@ -7,7 +7,11 @@ use crate::runner::Runner;
 pub fn build(runner: &mut dyn Runner, ws: &Workspace) -> Result<()> {
     runner.run(
         &ws.config.zola_bin,
-        &["build".into(), "--base-url".into(), ws.config.base_url.clone()],
+        &[
+            "build".into(),
+            "--base-url".into(),
+            ws.config.base_url.clone(),
+        ],
         Some(&ws.site_dir()),
     )
 }
@@ -22,7 +26,11 @@ pub fn deploy(runner: &mut dyn Runner, ws: &Workspace) -> Result<()> {
             "-az".into(),
             "--delete".into(),
             format!("{}/", public.display()),
-            format!("{}:{}/", ws.config.server, ws.config.docroot.trim_end_matches('/')),
+            format!(
+                "{}:{}/",
+                ws.config.server,
+                ws.config.docroot.trim_end_matches('/')
+            ),
         ],
         None,
     )
@@ -57,8 +65,14 @@ mod tests {
         assert_eq!(mock.calls.len(), 1);
         let call = &mock.calls[0];
         assert_eq!(call.program, "zola");
-        assert_eq!(call.args, vec!["build", "--base-url", "https://blog.example.com"]);
-        assert_eq!(call.cwd.as_deref(), Some(std::path::Path::new("/repo/blog")));
+        assert_eq!(
+            call.args,
+            vec!["build", "--base-url", "https://blog.example.com"]
+        );
+        assert_eq!(
+            call.cwd.as_deref(),
+            Some(std::path::Path::new("/repo/blog"))
+        );
     }
 
     #[test]

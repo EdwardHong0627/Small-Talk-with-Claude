@@ -45,7 +45,11 @@ impl Fixture {
             "---\ntitle: Integration Post\ntags: [testing]\n---\nSome **body**.\n",
         )
         .unwrap();
-        Fixture { dir, zola_log, rsync_log }
+        Fixture {
+            dir,
+            zola_log,
+            rsync_log,
+        }
     }
 
     fn cmd(&self, args: &[&str]) -> Command {
@@ -82,9 +86,17 @@ fn publish_dry_run_builds_without_deploying() {
         .stdout(predicate::str::contains("Integration Post"))
         .stdout(predicate::str::contains("Dry run"));
 
-    assert!(fx.log(&fx.zola_log).contains("build --base-url https://blog.example.com"));
+    assert!(
+        fx.log(&fx.zola_log)
+            .contains("build --base-url https://blog.example.com")
+    );
     assert_eq!(fx.log(&fx.rsync_log), "", "rsync must not run on dry run");
-    assert!(fx.dir.path().join("blog/content/blog/integration-post/index.md").exists());
+    assert!(
+        fx.dir
+            .path()
+            .join("blog/content/blog/integration-post/index.md")
+            .exists()
+    );
     assert!(!fx.dir.path().join(".mdpub-state.json").exists());
 }
 
@@ -100,7 +112,10 @@ fn publish_deploys_and_reports_url() {
 
     let rsync = fx.log(&fx.rsync_log);
     assert!(rsync.contains("-az --delete"), "rsync args: {rsync}");
-    assert!(rsync.contains("deploy@203.0.113.7:/var/www/blog/"), "rsync args: {rsync}");
+    assert!(
+        rsync.contains("deploy@203.0.113.7:/var/www/blog/"),
+        "rsync args: {rsync}"
+    );
     assert!(fx.dir.path().join(".mdpub-state.json").exists());
 }
 
@@ -112,7 +127,9 @@ fn unchanged_republish_exits_2_until_forced() {
         .assert()
         .code(2)
         .stderr(predicate::str::contains("--force"));
-    fx.cmd(&["publish", "Day1/post.md", "--force"]).assert().success();
+    fx.cmd(&["publish", "Day1/post.md", "--force"])
+        .assert()
+        .success();
 }
 
 #[test]
@@ -155,7 +172,11 @@ fn status_flags_missing_import_and_publish_refuses_to_deploy() {
         .stdout(predicate::str::contains("[missing import"));
 
     // Publishing a second article must refuse to deploy over the gap.
-    fs::write(fx.dir.path().join("Day1/other.md"), "# Other Post\n\nBody.\n").unwrap();
+    fs::write(
+        fx.dir.path().join("Day1/other.md"),
+        "# Other Post\n\nBody.\n",
+    )
+    .unwrap();
     fx.cmd(&["publish", "Day1/other.md"])
         .assert()
         .failure()
@@ -163,7 +184,9 @@ fn status_flags_missing_import_and_publish_refuses_to_deploy() {
     assert_eq!(fx.log(&fx.rsync_log).lines().count(), 1, "no second deploy");
 
     // The documented remedy regenerates the import; publish then succeeds.
-    fx.cmd(&["publish", "Day1/post.md", "--dry-run"]).assert().success();
+    fx.cmd(&["publish", "Day1/post.md", "--dry-run"])
+        .assert()
+        .success();
     fx.cmd(&["publish", "Day1/other.md"]).assert().success();
     fx.cmd(&["status"])
         .assert()
@@ -180,7 +203,12 @@ fn unpublish_removes_page_and_redeploys() {
         .success()
         .stdout(predicate::str::contains("Unpublished Day1/post.md"));
 
-    assert!(!fx.dir.path().join("blog/content/blog/integration-post").exists());
+    assert!(
+        !fx.dir
+            .path()
+            .join("blog/content/blog/integration-post")
+            .exists()
+    );
     // build+deploy ran twice: once for publish, once for unpublish
     assert_eq!(fx.log(&fx.rsync_log).lines().count(), 2);
     fx.cmd(&["status"])
@@ -201,9 +229,11 @@ fn publish_with_local_image_colocates_it() {
 
     let page_dir = fx.dir.path().join("blog/content/blog/integration-post");
     assert!(page_dir.join("manuscript.png").exists());
-    assert!(fs::read_to_string(page_dir.join("index.md"))
-        .unwrap()
-        .contains("![manuscript](manuscript.png)"));
+    assert!(
+        fs::read_to_string(page_dir.join("index.md"))
+            .unwrap()
+            .contains("![manuscript](manuscript.png)")
+    );
 }
 
 #[test]
