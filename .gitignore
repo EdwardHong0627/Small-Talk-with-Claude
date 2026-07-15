@@ -1,8 +1,10 @@
 # --- Confidential: server address, deploy target, local settings ---
 mdpub.toml
 config
-.conf
-.env
+*.conf
+# …but the committed Caddy template is a secret-free example, keep it
+!blog-api/deploy/caddy-snippet.conf
+*.env
 .env.*
 *.pem
 *.key
