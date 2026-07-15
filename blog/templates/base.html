@@ -511,6 +511,71 @@
       color: var(--muted);
       min-height: 1.1em;
     }
+
+    /* ---------- lightbox (click-to-enlarge post images) ---------- */
+    article.prose img.zoomable { cursor: zoom-in; }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+      padding: 3rem 1.5rem 2rem;
+      background: rgba(4, 6, 7, 0.88);
+      backdrop-filter: blur(3px);
+      opacity: 0;
+      transition: opacity 0.16s ease;
+    }
+    .lightbox[hidden] { display: none; }
+    .lightbox.is-open { opacity: 1; }
+
+    .lightbox img {
+      max-width: min(100%, 1400px);
+      max-height: calc(100vh - 8rem);
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      cursor: zoom-out;
+    }
+    .lightbox .lightbox-caption {
+      margin: 0;
+      max-width: 720px;
+      text-align: center;
+      font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .lightbox .lightbox-caption:empty { display: none; }
+    .lightbox .lightbox-close {
+      position: absolute;
+      top: 1rem;
+      right: 1.2rem;
+      font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: var(--fg);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.3rem 0.65rem;
+      cursor: pointer;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .lightbox .lightbox-close:hover { color: var(--accent); border-color: var(--accent); }
+    .lightbox .lightbox-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    body.lightbox-open { overflow: hidden; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lightbox { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -562,5 +627,6 @@
     })();
   </script>
   <script defer src="{{ get_url(path='js/interact.js') }}"></script>
+  <script defer src="{{ get_url(path='js/lightbox.js') }}"></script>
 </body>
 </html>
