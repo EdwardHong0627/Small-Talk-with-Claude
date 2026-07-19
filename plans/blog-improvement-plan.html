@@ -1,0 +1,439 @@
+<title>Small Talk with Claude — Improvement Plan</title>
+<style>
+  :root {
+    --bg: #f2f5f5;
+    --panel: #ffffff;
+    --ink: #1a2426;
+    --muted: #5c6b6e;
+    --line: #dbe3e3;
+    --accent: #0e7490;
+    --accent-soft: rgba(14, 116, 144, 0.08);
+    --crit: #b23527;
+    --high: #ad5f10;
+    --med: #8a7413;
+    --low: #5f7378;
+    --good: #1d7a43;
+    --code-bg: #e9efef;
+    --shadow: 0 1px 3px rgba(20, 35, 38, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1112;
+      --panel: #131b1c;
+      --ink: #d8e2e3;
+      --muted: #8da0a3;
+      --line: #223031;
+      --accent: #3cc5de;
+      --accent-soft: rgba(60, 197, 222, 0.09);
+      --crit: #e2705f;
+      --high: #dc9c4b;
+      --med: #cfba55;
+      --low: #8ba3a8;
+      --good: #55b97f;
+      --code-bg: #1b2627;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f2f5f5; --panel: #ffffff; --ink: #1a2426; --muted: #5c6b6e;
+    --line: #dbe3e3; --accent: #0e7490; --accent-soft: rgba(14,116,144,0.08);
+    --crit: #b23527; --high: #ad5f10; --med: #8a7413; --low: #5f7378;
+    --good: #1d7a43; --code-bg: #e9efef; --shadow: 0 1px 3px rgba(20,35,38,0.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1112; --panel: #131b1c; --ink: #d8e2e3; --muted: #8da0a3;
+    --line: #223031; --accent: #3cc5de; --accent-soft: rgba(60,197,222,0.09);
+    --crit: #e2705f; --high: #dc9c4b; --med: #cfba55; --low: #8ba3a8;
+    --good: #55b97f; --code-bg: #1b2627; --shadow: none;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 3.5rem 1.25rem 5rem;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  /* ---------- header ---------- */
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.7rem;
+  }
+  h1 {
+    font-size: 2rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.8rem;
+    text-wrap: balance;
+  }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0 0 2rem; }
+  .lede strong { color: var(--ink); }
+
+  /* ---------- stat row ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 0 0 3rem;
+  }
+  .stat { background: var(--panel); padding: 0.9rem 1.1rem; }
+  .stat .n {
+    font-size: 1.45rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .l {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- sections ---------- */
+  h2 {
+    font-size: 1.3rem;
+    letter-spacing: -0.015em;
+    margin: 3rem 0 0.4rem;
+    text-wrap: balance;
+  }
+  h2 + .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.4rem; max-width: 65ch; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.84em;
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* ---------- strengths ---------- */
+  .good-list { list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; gap: 0.55rem; }
+  .good-list li { padding-left: 1.5rem; position: relative; max-width: 70ch; }
+  .good-list li::before {
+    content: "✓";
+    position: absolute; left: 0;
+    color: var(--good);
+    font-weight: 700;
+  }
+
+  /* ---------- findings ---------- */
+  .finding {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--sev, var(--line));
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    padding: 1.1rem 1.35rem 1.15rem;
+    margin: 0 0 0.9rem;
+  }
+  .finding.crit { --sev: var(--crit); }
+  .finding.high { --sev: var(--high); }
+  .finding.med  { --sev: var(--med); }
+  .finding.low  { --sev: var(--low); }
+  .f-head { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
+  .f-id {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .sev-pill {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sev);
+    border: 1px solid var(--sev);
+    border-radius: 999px;
+    padding: 0.05rem 0.55rem;
+  }
+  .finding h3 { font-size: 1.02rem; margin: 0; letter-spacing: -0.01em; }
+  .finding p { margin: 0.45rem 0 0; font-size: 0.93rem; max-width: 72ch; }
+  .finding p.where {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.74rem;
+    color: var(--muted);
+    margin-top: 0.6rem;
+  }
+  .fix { margin-top: 0.6rem; padding: 0.55rem 0.8rem; background: var(--accent-soft); border-radius: 5px; font-size: 0.9rem; }
+  .fix b { color: var(--accent); font-weight: 600; }
+
+  /* ---------- roadmap ---------- */
+  .phase {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 1.2rem 1.4rem;
+    margin: 0 0 1rem;
+  }
+  .phase-head { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
+  .phase-num {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+  .phase h3 { font-size: 1.05rem; margin: 0; }
+  .phase .when { margin-left: auto; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.7rem; color: var(--muted); }
+  .phase ul { margin: 0.7rem 0 0; padding-left: 1.2rem; }
+  .phase li { margin: 0.35rem 0; font-size: 0.93rem; }
+  .phase li .ref { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.72rem; color: var(--muted); }
+
+  /* ---------- footer ---------- */
+  .method {
+    margin-top: 3.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px dashed var(--line);
+    font-size: 0.82rem;
+    color: var(--muted);
+    max-width: 72ch;
+  }
+  @media (max-width: 560px) {
+    body { padding-top: 2rem; }
+    h1 { font-size: 1.6rem; }
+  }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">engineering review · 2026-07-16 · branch feature/image-enlarge-only</p>
+  <h1>Small Talk with Claude — Improvement Plan</h1>
+  <p class="lede">
+    Review of the self-hosted blog stack at <strong>edwardhong.net</strong>: the
+    <strong>mdpub</strong> publishing CLI, the <strong>blog-api</strong> interactivity service
+    (comments / reactions / contact), and the Zola site itself. The codebase is in good shape
+    overall — the review surfaced <strong>1 critical data-loss risk</strong>, 2 high-priority bugs,
+    and a set of medium/low hardening and polish items, organized into four phases below.
+  </p>
+
+  <div class="stats">
+    <div class="stat"><div class="n">6</div><div class="l">posts live</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">rust crates</div></div>
+    <div class="stat"><div class="n">~3.8k</div><div class="l">lines reviewed</div></div>
+    <div class="stat"><div class="n">11</div><div class="l">findings</div></div>
+  </div>
+
+  <h2>What's already solid</h2>
+  <p class="sub">Worth naming, so the plan doesn't churn what works.</p>
+  <ul class="good-list">
+    <li>Real test discipline: 76 mdpub tests, route-level blog-api tests, external commands mocked behind a <code>Runner</code> trait.</li>
+    <li>Security fundamentals done right: constant-time admin-token comparison, X-Forwarded-For only trusted from loopback (spoof-aware), honeypot fields, Caddy request-body cap, comments moderated by default.</li>
+    <li>Frontend XSS discipline — user content rendered exclusively via <code>textContent</code>, with the rule documented at the top of <code>interact.js</code>.</li>
+    <li>Coherent, hand-built site identity with dark/light theming, lazy-loaded card media, reduced-motion support, and an atom feed.</li>
+    <li>Good docs: tutorial, server setup, and a deploy-debugging postmortem.</li>
+  </ul>
+
+  <h2>Findings</h2>
+  <p class="sub">Ordered by severity. Each carries a concrete failure scenario and a proposed fix.</p>
+
+  <div class="finding crit">
+    <div class="f-head"><span class="sev-pill">critical</span><span class="f-id">F1 · data loss</span></div>
+    <h3>Repo has drifted from the live site — the next publish will delete two live posts</h3>
+    <p><code>.mdpub-state.json</code> tracks 6 published articles, but only 4 imported content
+    directories exist in <code>blog/content/blog/</code> (on this branch, on <code>main</code>, and on
+    <code>origin/main</code>). The Day 5 (ClickHouse MergeTree) and Day 6 (embedding table) imports were
+    never committed. Because <code>mdpub publish</code> runs <code>zola build</code> over whatever is in
+    <code>blog/content</code> and then <code>rsync --delete</code>, publishing <em>anything</em> from a
+    fresh checkout will silently remove both live posts from edwardhong.net.</p>
+    <p class="where">.mdpub-state.json · mdpub/src/deploy.rs (rsync --delete) · blog/content/blog/</p>
+    <div class="fix"><b>Fix:</b> re-run <code>mdpub publish</code> for <code>Day5/ClickHouse_MergeTree.md</code>
+    and <code>Day6/from-text-to-vectors.md</code> to regenerate the imports, commit them, and merge to main.
+    Then add a drift guard to mdpub: <code>publish</code> refuses (and <code>status</code> warns) when the
+    state file tracks a slug with no matching directory under <code>blog/content/blog/</code>.</div>
+  </div>
+
+  <div class="finding high">
+    <div class="f-head"><span class="sev-pill">high</span><span class="f-id">F2 · bug</span></div>
+    <h3>Anonymous comments are rejected, but the UI promises they work</h3>
+    <p>The comment form labels the name field "(optional)" and the renderer falls back to
+    "anonymous" — but <code>create_comment</code> validates author with
+    <code>validate_len("author", &amp;payload.author, 1, 80)</code>, so an empty author returns 400.
+    Readers who skip the name field get a generic "could not submit comment" error and their comment is lost.</p>
+    <p class="where">blog-api/src/routes/comments.rs:68 · blog/templates/page.html:39 · blog/static/js/interact.js</p>
+    <div class="fix"><b>Fix:</b> allow empty author server-side (min 0, or default to "anonymous" on insert),
+    add a regression test for the empty-author case, and surface the API's error message in the form status
+    instead of a generic failure.</div>
+  </div>
+
+  <div class="finding high">
+    <div class="f-head"><span class="sev-pill">high</span><span class="f-id">F3 · robustness</span></div>
+    <h3>Handler <code>.unwrap()</code>s can poison the shared DB mutex and kill the service</h3>
+    <p>Every route locks <code>Arc&lt;Mutex&lt;Connection&gt;&gt;</code> with <code>.unwrap()</code> and calls
+    <code>prepare/execute/query_map(...).unwrap()</code>. One SQL error (disk full, locked DB, malformed data)
+    panics the handler task — and because the panic happens while holding the mutex, the mutex is poisoned and
+    <em>every subsequent request</em> panics until the process is restarted.</p>
+    <p class="where">blog-api/src/routes/{comments,reactions,admin,contact}.rs</p>
+    <div class="fix"><b>Fix:</b> introduce an <code>AppError → 500</code> conversion (axum <code>IntoResponse</code>),
+    replace handler unwraps with <code>?</code>, and recover poisoned locks via
+    <code>lock().unwrap_or_else(|e| e.into_inner())</code>. Add a test that a failing statement yields 500, not a hang.</div>
+  </div>
+
+  <div class="finding med">
+    <div class="f-head"><span class="sev-pill">medium</span><span class="f-id">F4 · process</span></div>
+    <h3>No CI — and formatting has already drifted in both crates</h3>
+    <p>There is no <code>.github/workflows/</code>; the 76-test suite only runs when someone remembers.
+    <code>cargo fmt --check</code> currently fails in both <code>mdpub</code> and <code>blog-api</code> —
+    exactly the drift CI would have caught.</p>
+    <p class="where">repo root (no .github/) · mdpub/src/cli.rs · blog-api/src/config.rs</p>
+    <div class="fix"><b>Fix:</b> one workflow running <code>cargo fmt --check</code>, <code>cargo clippy -D warnings</code>,
+    and <code>cargo test</code> per crate on push/PR; run <code>cargo fmt</code> once to clear the existing drift.</div>
+  </div>
+
+  <div class="finding med">
+    <div class="f-head"><span class="sev-pill">medium</span><span class="f-id">F5 · durability</span></div>
+    <h3>No backup story for the comments/reactions database</h3>
+    <p>All reader data lives in a single SQLite file on the $5 Linode. A disk failure or a bad deploy
+    loses every comment, reaction, and contact message permanently.</p>
+    <p class="where">blog-api (SQLite at BLOG_API_DB_PATH) · docs/server-setup.md</p>
+    <div class="fix"><b>Fix:</b> nightly <code>sqlite3 .backup</code> via cron with 7-day rotation, synced off-box
+    (even <code>rsync</code> back to the Mac works). Litestream is the fancier option if you want continuous replication.</div>
+  </div>
+
+  <div class="finding med">
+    <div class="f-head"><span class="sev-pill">medium</span><span class="f-id">F6 · seo</span></div>
+    <h3>No Open Graph / Twitter cards, and <code>canonical_url</code> is silently dropped</h3>
+    <p>Article pages emit no <code>og:*</code> or <code>twitter:*</code> meta, so links shared to
+    social/Slack/Discord render bare. mdpub faithfully carries <code>canonical_url</code> frontmatter
+    through import — but no template renders a <code>&lt;link rel="canonical"&gt;</code>, so cross-posted
+    articles get no canonical signal at all.</p>
+    <p class="where">blog/templates/base.html (head) · blog/templates/page.html · mdpub/src/frontmatter.rs:128</p>
+    <div class="fix"><b>Fix:</b> add og:title/description/url/image (first page asset works as the image),
+    twitter:card, and canonical link to the head block. ~20 lines of Tera.</div>
+  </div>
+
+  <div class="finding med">
+    <div class="f-head"><span class="sev-pill">medium</span><span class="f-id">F7 · resource leak</span></div>
+    <h3>Rate limiter never evicts expired windows</h3>
+    <p>The fixed-window map is keyed by <code>(ip, route)</code> and entries are never removed, so memory grows
+    monotonically with every unique client IP for the life of the process. Slow on a small blog, but a
+    scraper sweep or bot wave inflates it — and it never comes back down.</p>
+    <p class="where">blog-api/src/ratelimit.rs:72</p>
+    <div class="fix"><b>Fix:</b> sweep expired entries opportunistically inside <code>check()</code>
+    (e.g. every N calls) or via a background task; add a test that stale keys are dropped.</div>
+  </div>
+
+  <div class="finding low">
+    <div class="f-head"><span class="sev-pill">low</span><span class="f-id">F8 · hardening</span></div>
+    <h3>No security headers on the static site</h3>
+    <p>The Caddy snippet proxies <code>/api/*</code> but sets no CSP, <code>X-Content-Type-Options</code>,
+    or <code>Referrer-Policy</code>. The site's JS surface is small and first-party, which makes a strict
+    CSP cheap to adopt now (the Google Fonts origin is the only third party — see F9).</p>
+    <p class="where">blog-api/deploy/caddy-snippet.conf · /etc/caddy/Caddyfile</p>
+    <div class="fix"><b>Fix:</b> add a <code>header</code> block: CSP allowing self + fonts origins,
+    <code>nosniff</code>, <code>strict-origin-when-cross-origin</code>.</div>
+  </div>
+
+  <div class="finding low">
+    <div class="f-head"><span class="sev-pill">low</span><span class="f-id">F9 · performance</span></div>
+    <h3>Multi-megabyte GIFs and third-party fonts weigh down page loads</h3>
+    <p>Post diagrams ship as GIFs up to 4&nbsp;MB (rebac.gif) — the RBAC post carries ~6.7&nbsp;MB of GIF alone.
+    Fonts load from Google Fonts, adding a third-party dependency, a render-blocking request chain, and an
+    EU-privacy wrinkle.</p>
+    <p class="where">blog/content/blog/*/ (gifs) · blog/templates/base.html:19–21</p>
+    <div class="fix"><b>Fix:</b> convert animated diagrams to looping <code>&lt;video&gt;</code> (MP4/WebM is
+    typically 8–15× smaller; could be an mdpub image-pipeline step), and self-host the three font families
+    under <code>blog/static/fonts/</code>.</div>
+  </div>
+
+  <div class="finding low">
+    <div class="f-head"><span class="sev-pill">low</span><span class="f-id">F10 · workflow</span></div>
+    <h3>Pending comments and contact messages are invisible until you poll</h3>
+    <p>Moderation requires remembering to run <code>curl</code> with the admin token; a comment can sit
+    pending for weeks unnoticed. Same for contact messages.</p>
+    <p class="where">README.md (moderation section) · approve_comments.sh</p>
+    <div class="fix"><b>Fix:</b> a daily server cron that checks pending counts and pings you
+    (ntfy.sh / email via msmtp) only when nonzero. Alternatively a <code>mdpub comments</code> subcommand
+    to list/approve interactively from the repo.</div>
+  </div>
+
+  <div class="finding low">
+    <div class="f-head"><span class="sev-pill">low</span><span class="f-id">F11 · hygiene</span></div>
+    <h3>Small repo/script hygiene items</h3>
+    <p><code>publish.sh</code> has no shebang, no <code>set -euo pipefail</code>, and an unquoted
+    <code>$path</code> (breaks on filenames with spaces). Editor/agent state is committed
+    (<code>plans/</code> scratch files, <code>.claude/</code>, <code>.serena/</code> partially tracked).
+    Article sources live in <code>Day1..Day6/</code>, which won't scale past the daily-cadence phase.</p>
+    <p class="where">publish.sh · .gitignore · repo root</p>
+    <div class="fix"><b>Fix:</b> harden or delete <code>publish.sh</code> (it's a 1-line alias),
+    extend <code>.gitignore</code>, and consider <code>articles/&lt;slug&gt;/</code> naming going forward.</div>
+  </div>
+
+  <h2>Roadmap</h2>
+  <p class="sub">Four phases, ordered by risk. Phase 0 is genuinely urgent — it's the only item where inaction can destroy live data.</p>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 0</span>
+      <h3>Stop the data-loss window</h3>
+      <span class="when">~1–2 h · do before any publish</span>
+    </div>
+    <ul>
+      <li>Republish Day 5 &amp; Day 6 to regenerate their <code>blog/content</code> imports; verify against the live site; commit &amp; merge. <span class="ref">F1</span></li>
+      <li>Add the drift guard to <code>mdpub publish</code> / <code>mdpub status</code>, with tests. <span class="ref">F1</span></li>
+      <li>Fix the anonymous-comment 400 + regression test. <span class="ref">F2</span></li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 1</span>
+      <h3>Make correctness automatic</h3>
+      <span class="when">~half a day</span>
+    </div>
+    <ul>
+      <li>GitHub Actions: fmt + clippy + test for both crates; run <code>cargo fmt</code> once to clear existing drift. <span class="ref">F4</span></li>
+      <li>Replace handler unwraps with an <code>AppError</code> type; un-poison mutex recovery; 500-path test. <span class="ref">F3</span></li>
+      <li>Nightly SQLite backup cron with rotation. <span class="ref">F5</span></li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 2</span>
+      <h3>Reach &amp; hardening</h3>
+      <span class="when">~half a day</span>
+    </div>
+    <ul>
+      <li>Open Graph / Twitter meta + canonical link in templates. <span class="ref">F6</span></li>
+      <li>Security headers in the Caddy config. <span class="ref">F8</span></li>
+      <li>Rate-limiter eviction + test. <span class="ref">F7</span></li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 3</span>
+      <h3>Polish &amp; workflow</h3>
+      <span class="when">opportunistic</span>
+    </div>
+    <ul>
+      <li>GIF → looping video pipeline; self-host fonts. <span class="ref">F9</span></li>
+      <li>Pending-comment notification (cron + ntfy) or <code>mdpub comments</code> subcommand. <span class="ref">F10</span></li>
+      <li>Script/repo hygiene; <code>articles/</code> layout for future posts. <span class="ref">F11</span></li>
+      <li>Optional: enable Zola's search index once post count justifies it; aria-labels on reaction buttons.</li>
+    </ul>
+  </div>
+
+  <p class="method">
+    <strong>Method.</strong> Reviewed all Rust sources in <code>mdpub/</code> and <code>blog-api/</code>,
+    Zola templates and JS in <code>blog/</code>, deploy scripts, docs, git history across branches, and
+    <code>.mdpub-state.json</code>. Ran <code>cargo fmt --check</code> on both crates (both fail);
+    test suites were not executed as part of this review. The F1 drift was confirmed against
+    <code>main</code> and <code>origin/main</code> trees, not just the working branch.
+  </p>
+</div>
