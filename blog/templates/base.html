@@ -5,6 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ config.title }}{% endblock title %}</title>
   <meta name="description" content="{% block description %}{{ config.description }}{% endblock description %}">
+
+  {#- SEO: canonical + Open Graph + Twitter cards. Resolve one set of vars per
+      context (page / section / taxonomy term / bare), then emit once below. -#}
+  {%- set seo_noindex = false -%}
+  {%- if page is defined -%}
+    {%- set seo_title = page.title -%}
+    {%- set seo_url = page.permalink -%}
+    {#- mdpub carries canonical_url frontmatter through to [extra] (zola.rs:126). -#}
+    {%- set seo_canonical = page.extra.canonical_url | default(value=page.permalink) -%}
+    {#- Dated pages are posts; undated standalones (contact) are not articles. -#}
+    {%- if page.date -%}
+      {%- set seo_type = "article" -%}
+    {%- else -%}
+      {%- set seo_type = "website" -%}
+    {%- endif -%}
+    {%- set seo_assets = page.assets -%}
+    {#- Mirrors the excerpt fallback in index.html:26-32 — no post sets description. -#}
+    {%- if page.description -%}
+      {%- set seo_desc = page.description -%}
+    {%- else -%}
+      {%- set seo_desc = page.content | striptags | trim | truncate(length=180) -%}
+    {%- endif -%}
+  {%- elif section is defined -%}
+    {%- set seo_title = section.title | default(value=config.title) -%}
+    {%- set seo_desc = section.description | default(value=config.description) -%}
+    {%- set seo_url = section.permalink -%}
+    {%- set seo_canonical = section.permalink -%}
+    {%- set seo_type = "website" -%}
+    {%- set seo_assets = section.assets -%}
+  {%- elif term is defined -%}
+    {%- set seo_title = "#" ~ term.name -%}
+    {%- set seo_desc = config.description -%}
+    {%- set seo_url = term.permalink -%}
+    {%- set seo_canonical = term.permalink -%}
+    {%- set seo_type = "website" -%}
+    {%- set seo_assets = [] -%}
+  {%- else -%}
+    {#- No page/section/term in context (404). Never emit a canonical here: it
+        would tell crawlers the error page *is* the homepage. noindex instead. -#}
+    {%- set seo_title = config.title -%}
+    {%- set seo_desc = config.description -%}
+    {%- set seo_url = get_url(path="") -%}
+    {%- set seo_canonical = "" -%}
+    {%- set seo_type = "website" -%}
+    {%- set seo_assets = [] -%}
+    {%- set seo_noindex = true -%}
+  {%- endif -%}
+  {#- First image asset becomes the card image. page.assets are root-relative
+      (/blog/<slug>/x.gif), so get_url() absolutizes them against base_url. -#}
+  {%- set_global seo_image = "" -%}
+  {%- for asset in seo_assets -%}
+    {%- if seo_image == "" -%}
+      {%- if asset is ending_with(".png") or asset is ending_with(".jpg") or asset is ending_with(".jpeg") or asset is ending_with(".gif") or asset is ending_with(".webp") -%}
+        {%- set_global seo_image = get_url(path=asset) -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endfor %}
+  {%- if seo_noindex %}
+  <meta name="robots" content="noindex">
+  {%- else %}
+  <link rel="canonical" href="{{ seo_canonical }}">
+  {%- endif %}
+  <meta property="og:site_name" content="{{ config.title }}">
+  <meta property="og:type" content="{{ seo_type }}">
+  <meta property="og:title" content="{{ seo_title }}">
+  <meta property="og:description" content="{{ seo_desc }}">
+  <meta property="og:url" content="{{ seo_url }}">
+  {%- if seo_image %}
+  <meta property="og:image" content="{{ seo_image }}">
+  <meta name="twitter:card" content="summary_large_image">
+  {%- else %}
+  <meta name="twitter:card" content="summary">
+  {%- endif %}
+  <meta name="twitter:title" content="{{ seo_title }}">
+  <meta name="twitter:description" content="{{ seo_desc }}">
+  {%- if page is defined and page.date %}
+  <meta property="article:published_time" content="{{ page.date }}">
+  {%- endif %}
+
   <link rel="icon" type="image/svg+xml" href="{{ get_url(path='favicon.svg') }}">
   <link rel="alternate icon" href="{{ get_url(path='favicon.svg') }}">
   {% if config.generate_feeds %}<link rel="alternate" type="application/atom+xml" title="{{ config.title }}" href="{{ get_url(path='atom.xml') }}">{% endif %}
